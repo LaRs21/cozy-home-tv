@@ -61,11 +61,12 @@ import java.util.concurrent.Executors;
 
 /**
  * Cozy Home TV: the home screen.
- *  - Default look (no setup): drawn by the selected Theme (Themes.java). The default "Glass" theme shows bundled
- *    photos that slowly crossfade, a clock top-right, a dock of rounded tiles over a frosted strip and the all-apps
- *    grid below. "Classic" is the 1.0 look without pictures. No music in either.
+ *  - Every look is a Theme (Themes.java): Clean (default, no pictures), Glass (Aerial), Cozy Home, Neon City,
+ *    Starship and Retro Arcade. A theme gives the background (with its own cheap motion), layout, tile style, fonts,
+ *    clock style and UI sounds.
  *  - Cozy look (opt-in in Settings): the user's own time-of-day picture(s), optional music and card art from a
- *    folder on the TV (see CozyPack).
+ *    folder on the TV (see CozyPack). It replaces the theme's background; with the Clean theme it keeps its own
+ *    classic arrangement, with any other theme the rest of that theme stays.
  * Layout works in a 1920x1080 design space scaled to the real screen with d().
  */
 public class HomeActivity extends Activity {
@@ -91,6 +92,7 @@ public class HomeActivity extends Activity {
     // theme (Default mode)
     Theme theme; String themeKey = ""; Scene.Backdrop themeBg; Bitmap themeFrost; Ui.Frost shelfFrost;
     LinearLayout shelf, clockCol; View headerGap; int keyDx, keyDy;
+    FrameLayout dockWrap; Ui.Ambient dockDecor; final Synth synthFocus = new Synth(), synthSelect = new Synth(); CharSequence lastClock;
     final List<ValueAnimator> loops = new ArrayList<>();
 
     // apps
@@ -151,20 +153,22 @@ public class HomeActivity extends Activity {
         super.onResume(); resumed = true;
         hidden = prefs.hidden();
         String tk = themeKey();
-        if (!tk.equals(themeKey)) { themeKey = tk; theme = Themes.get(prefs.theme()); releaseThemeBg(); applyLook(true); }
+        if (!tk.equals(themeKey)) { themeKey = tk; theme = Themes.get(prefs.theme()); releaseThemeBg(); cozyShown = false; applyLook(true); }
         else applyLook(false);
         startMotion();
         setMusic();
+        if (dockDecor != null) dockDecor.setRunning(prefs.motion());
         restoreFocus();
     }
 
-    @Override protected void onPause() { resumed = false; releaseMusic(); stopMotion(); super.onPause(); }
+    @Override protected void onPause() { resumed = false; releaseMusic(); stopMotion(); if (dockDecor != null) dockDecor.setRunning(false); super.onPause(); }
 
     @Override protected void onStop() {
         started = false;
         try { unregisterReceiver(timeReceiver); } catch (Exception ignored) {}
         if (backdrop != null) backdrop.stop();
         if (themeBg != null) themeBg.stop();
+        synthFocus.release(); synthSelect.release();
         super.onStop();
     }
 
@@ -180,11 +184,12 @@ public class HomeActivity extends Activity {
 
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); setIntent(i); handleIntent(i); if (resumed) { applyLook(false); setMusic(); } closeOverlays(); }
 
-    /** Script hooks: am start -n <pkg>/.HomeActivity --es mode cozy|default --es hide a,b --es unhide a,b --ez reload true */
+    /** Script hooks: am start -n <pkg>/.HomeActivity --es mode cozy|default --es theme <id> --es hide a,b --es unhide a,b --ez reload true */
     void handleIntent(Intent i) {
         if (i == null || prefs == null) return;
         String mode = i.getStringExtra("mode");
         if (Prefs.MODE_COZY.equals(mode) || Prefs.MODE_DEFAULT.equals(mode)) prefs.setMode(mode);
+        String th = i.getStringExtra("theme"); if (th != null) prefs.setTheme(Themes.get(th).id());
         String hide = i.getStringExtra("hide"), unhide = i.getStringExtra("unhide");
         if (hide != null || unhide != null) {
             Set<String> h = prefs.hidden();
@@ -245,9 +250,11 @@ public class HomeActivity extends Activity {
         column.addView(shelf, new LinearLayout.LayoutParams(-1, -2));
         shelfFrost = new Ui.Frost(shelf, theme.layout().panelTint, df(theme.layout().panelRadius));
         favLabel = sectionLabel("Favourites"); shelf.addView(favLabel);
+        dockWrap = new FrameLayout(this); dockWrap.setClipChildren(false); dockWrap.setClipToPadding(false);
+        shelf.addView(dockWrap, new LinearLayout.LayoutParams(-1, -2));
         favRow = new LinearLayout(this); favRow.setOrientation(LinearLayout.HORIZONTAL); favRow.setClipChildren(false); favRow.setClipToPadding(false);
         favRow.setPadding(0, d(14), 0, d(14));
-        shelf.addView(favRow, new LinearLayout.LayoutParams(-1, -2));
+        dockWrap.addView(favRow, new FrameLayout.LayoutParams(-1, -2));
 
         allPanel = new LinearLayout(this); allPanel.setOrientation(LinearLayout.VERTICAL); allPanel.setClipChildren(false); allPanel.setClipToPadding(false);
         panelFrost = new Ui.Frost(allPanel, 0x47000000, df(28));
@@ -263,7 +270,7 @@ public class HomeActivity extends Activity {
         setContentView(root);
     }
 
-    /** Classic: big clock top-left, buttons top-right. Glass: buttons top-left, clock top-right. */
+    /** Clean: big clock top-left, buttons top-right. Glass: buttons top-left, clock top-right. */
     void arrangeHeader(boolean clockRight) {
         header.removeAllViews();
         LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(-2, d(64)); il.rightMargin = d(16); il.topMargin = d(14);
@@ -281,8 +288,10 @@ public class HomeActivity extends Activity {
     }
 
     /** Layout/card style in use: Cozy mode keeps the classic arrangement over the user's own picture. */
-    Theme.Layout L() { return cozyShown ? Themes.CLASSIC.layout() : theme.layout(); }
-    Theme.CardStyle C() { return cozyShown ? Themes.CLASSIC.cards() : theme.cards(); }
+    Theme.Layout L() { return theme.layout(); }
+    Theme.CardStyle C() { return theme.cards(); }
+    /** Cozy pack shown with the Clean theme: the original Cozy arrangement (big picture, glass panel for all apps). */
+    boolean cozyClassic() { return cozyShown && theme == Themes.CLEAN; }
     String themeKey() { return prefs.theme() + "/" + prefs.wallpaperSeconds() + "/" + prefs.motion(); }
 
     /** Starts the theme's background (bundled wallpapers) in Default mode. Created lazily, freed in releaseHeavy. */
@@ -322,9 +331,9 @@ public class HomeActivity extends Activity {
     }
 
     void onScrolled(int y) {
-        float k = Math.min(1f, y / (float) d(cozyShown ? 420 : 300));
-        scrim.setAlpha((cozyShown ? .62f : L().scrimMax) * k);
-        if (cozyShown) allPanel.invalidate(); else if (L().frostPanel) shelf.invalidate();
+        float k = Math.min(1f, y / (float) d(cozyClassic() ? 420 : 300));
+        scrim.setAlpha((cozyClassic() ? .62f : L().scrimMax) * k);
+        if (cozyClassic()) allPanel.invalidate(); else if (L().frostPanel) shelf.invalidate();
     }
 
     // ================= look: default vs cozy =================
@@ -353,11 +362,18 @@ public class HomeActivity extends Activity {
         rebuildRows();
     }
 
-    void showDefaultChrome() {
+    void showDefaultChrome() { applyThemeChrome(); ensureThemeBg(); }
+
+    /** Everything the theme decides except the background picture. */
+    void applyThemeChrome() {
         Theme.Layout l = theme.layout();
         root.setBackground(theme.baseDrawable());
         title.setVisibility(View.GONE); clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(l.clockSize)); clock.setTypeface(theme.clockFont(this));
-        date.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(l.dateSize));
+        date.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(l.dateSize)); date.setTypeface(theme.labelFont(this));
+        theme.styleClock(clock, date, S);
+        Typeface lf = theme.labelFont(this);
+        for (TextView t : new TextView[]{favLabel, allLabel}) { t.setTypeface(lf); t.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(l.labelSize)); t.setTextColor(l.dimColor); t.setAllCaps(l.upperCase); }
+        setDockDecor(theme.dockDecor(this, S), l.dockDecorHeight);
         arrangeHeader(l.clockRight);
         bottomShade.setVisibility(l.bottomShade ? View.VISIBLE : View.GONE); onScrolled(scroller.getScrollY());
         spacer.getLayoutParams().height = d(l.dockSpacer); spacer.requestLayout();
@@ -367,12 +383,25 @@ public class HomeActivity extends Activity {
         shelfFrost.tint = l.panelTint; shelfFrost.t.setColor(l.panelTint); shelfFrost.radius = df(l.panelRadius);
         if (l.frostPanel) { shelf.setBackground(shelfFrost); shelf.setPadding(d(28), d(22), d(28), d(40)); }
         else { shelf.setBackground(null); shelf.setPadding(0, 0, 0, 0); }
-        ensureThemeBg();
+    }
+
+    /** Puts the theme's animated dock decoration (or nothing) behind the dock row. */
+    void setDockDecor(Ui.Ambient a, float extraTop) {
+        if (dockDecor != null) { dockDecor.setRunning(false); dockWrap.removeView(dockDecor); }
+        dockDecor = a;
+        if (a != null) { dockWrap.addView(a, 0, new FrameLayout.LayoutParams(-1, -1)); if (resumed) a.setRunning(prefs.motion()); }
+        favRow.setPadding(0, d(14 + extraTop), 0, d(14));
     }
 
     void showCozyChrome() {
-        releaseThemeBg(); // the user's own pack replaces the bundled wallpapers
+        releaseThemeBg(); // the user's own pack replaces the theme's background
         cozyShown = true;
+        if (theme != Themes.CLEAN) {
+            applyThemeChrome(); shelfFrost.blurred = frostBmp; shelfFrost.screenW = screenW; shelfFrost.screenH = screenH;
+            onScrolled(scroller.getScrollY()); rebuildRows(); return;
+        }
+        setDockDecor(null, 0); theme.styleClock(clock, date, S); date.setTypeface(Typeface.SANS_SERIF);
+        for (TextView t : new TextView[]{favLabel, allLabel}) { t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL)); t.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(26)); t.setTextColor(DIM); t.setAllCaps(false); }
         root.setBackground(new Ui.Night()); arrangeHeader(false);
         date.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(28));
         shelf.setBackground(null); shelf.setPadding(0, 0, 0, 0);
@@ -415,7 +444,9 @@ public class HomeActivity extends Activity {
                 Scene.Backdrop old = backdrop; backdrop = nb; still.set(b);
                 View nv = nb.view(); nv.setAlpha(0f); sceneLayer.addView(nv, new FrameLayout.LayoutParams(-1, -1));
                 nv.animate().alpha(1f).setDuration(dur(old == null ? 220 : 600)).withEndAction(() -> { if (old != null) { sceneLayer.removeView(old.view()); old.release(); } }).start();
-                Bitmap oldFrost = frostBmp; frostBmp = fr; panelFrost.blurred = fr; panelFrost.screenW = screenW; panelFrost.screenH = screenH; allPanel.invalidate(); if (oldFrost != null) oldFrost.recycle();
+                Bitmap oldFrost = frostBmp; frostBmp = fr; panelFrost.blurred = fr; panelFrost.screenW = screenW; panelFrost.screenH = screenH; allPanel.invalidate();
+                if (!cozyClassic()) { shelfFrost.blurred = fr; shelfFrost.screenW = screenW; shelfFrost.screenH = screenH; shelf.invalidate(); }
+                if (oldFrost != null) oldFrost.recycle();
                 for (Bitmap cb : cardArt.values()) cb.recycle(); cardArt.clear(); cardArt.putAll(cards);
                 setAmbientForPeriod(p);
                 rebuildRows();
@@ -507,7 +538,7 @@ public class HomeActivity extends Activity {
     List<String> visibleFavorites() { List<String> v = new ArrayList<>(); for (String p : favorites) { if (byPkg.containsKey(p)) v.add(p); if (v.size() >= MAX_FAV) break; } return v; }
 
     static final float TILE_W_FAV = 300, TILE_H_FAV = 169, GAP = 24;
-    float gridTileW() { Theme.Layout l = L(); int cols = l.gridCols; return (W - 2 * 96 - (cols - 1) * l.gridGap - (cozyShown || l.frostPanel ? 56 : 0)) / (float) cols; }
+    float gridTileW() { Theme.Layout l = L(); int cols = l.gridCols; return (W - 2 * 96 - (cols - 1) * l.gridGap - (cozyClassic() || l.frostPanel ? 56 : 0)) / (float) cols; }
 
     void rebuildRows() {
         if (favRow == null) return;
@@ -517,15 +548,15 @@ public class HomeActivity extends Activity {
         Theme.Layout l = L(); int cols = l.gridCols; grid.setColumnCount(cols);
         int shown = 0;
         for (String pkg : visibleFavorites()) {
-            View t = tile(byPkg.get(pkg), l.dockW, l.dockH, true);
+            View t = tile(byPkg.get(pkg), l.dockW, true);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2); if (shown > 0) lp.leftMargin = d(l.dockGap);
             favRow.addView(t, lp); shown++;
         }
         favLabel.setVisibility(shown == 0 || !l.dockLabel ? View.GONE : View.VISIBLE); favRow.setVisibility(shown == 0 ? View.GONE : View.VISIBLE);
-        float tw = gridTileW(), th = tw * 9 / 16; int i = 0;
+        float tw = gridTileW(); int i = 0;
         for (AppRepo.App a : apps) {
             if (hidden.contains(a.pkg)) continue;
-            View t = tile(a, tw, th, false);
+            View t = tile(a, tw, false);
             GridLayout.LayoutParams gl = new GridLayout.LayoutParams(); gl.width = -2; gl.height = -2;
             gl.setMargins(i % cols == 0 ? 0 : d(l.gridGap), i < cols ? 0 : d(l.gridGap), 0, 0);
             grid.addView(t, gl); i++;
@@ -537,41 +568,62 @@ public class HomeActivity extends Activity {
     }
 
     /**
-     * One app tile: rounded 16:9 card + name, styled by the theme's CardStyle. Focus = scale up with a soft shadow,
-     * optionally a small tilt towards where you came from that settles, a parallax nudge of the picture and a light sweep.
-     * Everything animates view properties only (no relayout), so D-pad focus stays instant.
+     * One app tile, styled by the theme's CardStyle: a 16:9 picture (banner or icon card) in a rounded card, optionally
+     * inside a frame (polaroid, cartridge) with the name printed on it, outline/brackets/ridges, a peg, and the name
+     * underneath. Focus = scale up with a (possibly coloured) shadow, straighten, an optional tilt that settles, a
+     * parallax nudge and a light sweep. Only view properties animate (no relayout), so D-pad focus stays instant.
      */
-    View tile(final AppRepo.App a, float w, float h, final boolean fav) {
-        final Theme.CardStyle cs = C();
+    View tile(final AppRepo.App a, float w, final boolean fav) {
+        final Theme.CardStyle cs = C(); final Theme.Layout l = L();
+        final boolean framed = cs.frameColor != 0;
+        final float picW = w - 2 * cs.insetX, picH = picW * 9 / 16, h = picH + cs.insetTop + cs.insetBottom;
         LinearLayout box = new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setClipChildren(false); box.setClipToPadding(false);
         box.setFocusable(true); box.setClickable(true); box.setTag(a.pkg);
         final FrameLayout card = new FrameLayout(this); final float r = df(cs.radius);
         card.setOutlineProvider(new ViewOutlineProvider() { @Override public void getOutline(View v, Outline o) { o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), r); } });
-        card.setClipToOutline(true); card.setElevation(df(cs.restElevation));
-        if (Build.VERSION.SDK_INT >= 28) { card.setOutlineSpotShadowColor(0xFF000000); card.setOutlineAmbientShadowColor(0xFF000000); }
+        card.setClipToOutline(!framed); card.setClipChildren(!framed); card.setElevation(df(cs.restElevation));
+        if (Build.VERSION.SDK_INT >= 28) { card.setOutlineSpotShadowColor(cs.focusShadowColor); card.setOutlineAmbientShadowColor(0xFF000000); }
         card.setCameraDistance(12000 * getResources().getDisplayMetrics().density);
-        card.setBackground(new Ui.Box(0xFF262B36, r));
+        card.setBackground(new Ui.Box(cs.cardColor, r));
         final ImageView iv = new ImageView(this); iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
         Bitmap user = cardArt.get(a.pkg);
         if (user != null) iv.setImageBitmap(user); else { Drawable dr = art.get(a.pkg); if (dr != null) iv.setImageDrawable(dr); }
-        card.addView(iv, new FrameLayout.LayoutParams(-1, -1));
+        if (framed) { FrameLayout.LayoutParams il = new FrameLayout.LayoutParams(d(picW), d(picH), Gravity.TOP | Gravity.START); il.leftMargin = d(cs.insetX); il.topMargin = d(cs.insetTop); card.addView(iv, il); }
+        else card.addView(iv, new FrameLayout.LayoutParams(-1, -1));
+        if (cs.labelInside) {
+            TextView lab = text(a.name, cs.labelInsideSize, theme.labelFont(this), cs.labelInsideColor); lab.setSingleLine(); lab.setEllipsize(TextUtils.TruncateAt.END);
+            lab.setGravity(Gravity.CENTER); lab.setAllCaps(l.upperCase); lab.setPadding(d(cs.insetX), 0, d(cs.insetX), 0); lab.setIncludeFontPadding(false);
+            card.addView(lab, new FrameLayout.LayoutParams(-1, d(cs.insetBottom), Gravity.BOTTOM));
+        }
         final View gloss, sweep;
         if (cs.shine) {
             gloss = new View(this); gloss.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0x2EFFFFFF, 0x08FFFFFF, 0x00FFFFFF})); gloss.setAlpha(0f);
             card.addView(gloss, new FrameLayout.LayoutParams(-1, -1));
-            sweep = new View(this); sweep.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0x00FFFFFF, 0x30FFFFFF, 0x00FFFFFF})); sweep.setAlpha(0f);
+            sweep = new View(this); sweep.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0x00FFFFFF, cs.shineColor, 0x00FFFFFF})); sweep.setAlpha(0f);
             sweep.setRotation(14f);
-            FrameLayout.LayoutParams sl = new FrameLayout.LayoutParams(d(w * .32f), d(h * 1.6f), Gravity.CENTER_VERTICAL); card.addView(sweep, sl);
+            card.addView(sweep, new FrameLayout.LayoutParams(d(w * .32f), d(h * 1.6f), Gravity.CENTER_VERTICAL));
         } else { gloss = null; sweep = null; }
+        final Ui.TileFrame frame;
+        if (cs.strokeWidth > 0 || cs.brackets || cs.ridges) {
+            frame = new Ui.TileFrame(this, r, df(cs.strokeWidth), cs.strokeColor, cs.strokeFocusColor, cs.brackets, cs.bracketColor, df(cs.bracketLen), cs.ridges, df(8), Math.max(1, df(cs.insetTop - 16)));
+            card.addView(frame, new FrameLayout.LayoutParams(-1, -1));
+        } else frame = null;
         final View ring;
         if (cs.ringWidth > 0) { ring = new View(this); ring.setBackground(new Ui.Box(0, r).stroke(cs.ringColor, df(cs.ringWidth))); ring.setAlpha(0f); card.addView(ring, new FrameLayout.LayoutParams(-1, -1)); }
         else ring = null;
+        if (cs.peg && fav) { FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(d(18), d(34), Gravity.TOP | Gravity.CENTER_HORIZONTAL); pl.topMargin = -d(26); card.addView(new Ui.Peg(this), pl); }
+        final float rest = cs.restTilt == 0 ? 0 : ((Math.abs(a.pkg.hashCode()) % 7) - 3) / 3f * cs.restTilt;
+        card.setRotation(rest);
         card.setAlpha(cs.unfocusedAlpha); // unfocused tiles sit back a little so the focused one stands out
         box.addView(card, new LinearLayout.LayoutParams(d(w), d(h)));
-        final TextView name = text(a.name, 22, Typeface.SANS_SERIF, DIM); name.setSingleLine(); name.setEllipsize(TextUtils.TruncateAt.END); name.setGravity(Gravity.CENTER_HORIZONTAL);
-        name.setShadowLayer(df(5), 0, df(2), 0xA0000000);
-        if (cs.namesOnFocusOnly) name.setAlpha(0f);
-        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(d(w), -2); nl.topMargin = d(cs.namesOnFocusOnly ? 18 : 12); box.addView(name, nl);
+        final int nameCol = cs.nameColor != 0 ? cs.nameColor : l.dimColor, nameFocus = cs.nameFocusColor != 0 ? cs.nameFocusColor : l.textColor;
+        final TextView name;
+        if (cs.showName) {
+            name = text(a.name, l.nameSize, theme.labelFont(this), nameCol); name.setSingleLine(); name.setEllipsize(TextUtils.TruncateAt.END); name.setGravity(Gravity.CENTER_HORIZONTAL);
+            name.setAllCaps(l.upperCase); name.setShadowLayer(df(5), 0, df(2), 0xA0000000);
+            if (cs.namesOnFocusOnly) name.setAlpha(0f);
+            LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(d(w), -2); nl.topMargin = d(cs.namesOnFocusOnly ? 18 : 12); box.addView(name, nl);
+        } else name = null;
         box.setOnFocusChangeListener((v, f) -> {
             boolean moving = a.pkg.equals(movingPkg);
             float sc = f ? (moving ? cs.focusScale + .04f : cs.focusScale) : 1f;
@@ -581,10 +633,11 @@ public class HomeActivity extends Activity {
                 card.setRotationY(-keyDx * cs.tiltDeg); card.setRotationX(keyDy * cs.tiltDeg * .7f);
                 iv.setTranslationX(-keyDx * df(10)); iv.setTranslationY(-keyDy * df(6));
             }
-            card.animate().scaleX(sc).scaleY(sc).alpha(f ? 1f : cs.unfocusedAlpha).translationY(f ? -df(cs.lift) : 0).rotationX(0f).rotationY(0f)
+            card.animate().scaleX(sc).scaleY(sc).alpha(f ? 1f : cs.unfocusedAlpha).translationY(f ? -df(cs.lift) : 0).rotationX(0f).rotationY(0f).rotation(f ? 0f : rest)
                 .setDuration(ms).setInterpolator(ease).start();
             iv.animate().translationX(0).translationY(0).scaleX(f && cs.shine ? 1.04f : 1f).scaleY(f && cs.shine ? 1.04f : 1f).setDuration(dur(f ? cs.focusMs + 120 : 150)).setInterpolator(ease).start();
             if (ring != null) ring.animate().alpha(f ? 1f : 0f).setDuration(dur(120)).start();
+            if (frame != null) frame.setFocusedLook(f);
             if (gloss != null) gloss.animate().alpha(f ? 1f : 0f).setDuration(dur(200)).start();
             if (sweep != null) {
                 sweep.animate().cancel();
@@ -592,8 +645,10 @@ public class HomeActivity extends Activity {
                 else sweep.setAlpha(0f);
             }
             card.setElevation(f ? df(cs.focusElevation) : df(cs.restElevation)); box.setZ(f ? 1 : 0);
-            name.setTextColor(f ? TEXT : DIM);
-            if (cs.namesOnFocusOnly) name.animate().alpha(f ? 1f : 0f).setDuration(dur(f ? 200 : 100)).start();
+            if (name != null) {
+                name.setTextColor(f ? nameFocus : nameCol);
+                if (cs.namesOnFocusOnly) name.animate().alpha(f ? 1f : 0f).setDuration(dur(f ? 200 : 100)).start();
+            }
             if (f) { lastFocusPkg = a.pkg; lastFocusInFav = fav; click(false); }
         });
         box.setOnClickListener(v -> { if (movingPkg != null) { endMove(); return; } launch(a, card); });
@@ -724,13 +779,18 @@ public class HomeActivity extends Activity {
         if (clock == null) return;
         Boolean c24 = prefs.clock24(); boolean h24 = c24 != null ? c24 : DateFormat.is24HourFormat(this);
         Calendar now = Calendar.getInstance();
-        clock.setText(DateFormat.format(h24 ? "H:mm" : "h:mm", now));
+        CharSequence txt = DateFormat.format(h24 ? "H:mm" : "h:mm", now);
+        boolean changed = lastClock != null && !TextUtils.equals(lastClock, txt); lastClock = txt;
+        clock.setText(txt);
+        if (changed) theme.onClockChanged(clock, date, S, resumed && prefs.motion());
         date.setText(DateFormat.format("EEEE, d MMMM", now));
     }
 
     void click(boolean select) {
         if (!prefs.sounds() || !resumed) return;
         Theme.Sounds snd = theme.sounds();
+        short[] pcm = select ? snd.selectPcm : snd.focusPcm;
+        if (pcm != null) { if (Settings.System.getInt(getContentResolver(), Settings.System.SOUND_EFFECTS_ENABLED, 1) != 0) (select ? synthSelect : synthFocus).play(pcm); return; }
         audio.playSoundEffect(select ? snd.select : snd.focus, snd.volume);
     }
 

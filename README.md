@@ -3,36 +3,35 @@
 **A fast, clean home screen for Android TV and Google TV, with an optional cozy look made from your own
 pictures and music.**
 
-Out of the box it's a calm launcher in an Apple TV-like style: cozy photos that slowly crossfade, a clock in
-the corner, a dock of your favourite apps with big rounded tiles over frosted glass, and every other app in a
-grid below. No ads, no rows of recommendations. (Prefer it plain? Settings > Theme > Classic.) Switch on the **Cozy look** and your home screen becomes a picture you
+Out of the box it's a calm, plain launcher: a clock, a row of your favourite apps and every other app in a grid
+below. No ads, no rows of recommendations. Pick one of six themes in Settings > Theme (Clean, Glass, Cozy Home,
+Neon City, Starship, Retro Arcade), or switch on the **Cozy look** and your home screen becomes a picture you
 love (one picture, or a different one for morning, day, evening and night) with your own music playing softly
 while you choose what to watch.
 
 ![Default look](docs/screenshots/default.jpg)
+![Themes](docs/screenshots/themes.jpg)
 ![Cozy look with the sample pack](docs/screenshots/cozy.jpg)
 
 > Screenshots from the Android TV emulator. Photos on a real TV coming soon.
 
 ## Features
 
-- **Default look, zero setup (Glass theme):** eight bundled cozy photos (public domain, see [CREDITS.md](CREDITS.md))
-  that crossfade every minute (configurable) with a gentle slow drift, the clock top-right, a dock of large rounded
-  tiles that scale up with a soft shadow, a small tilt and a light sweep when focused, and the all-apps grid on
-  frosted glass below. No music.
-- **Themes:** the look is a pluggable theme (`Theme.java`, `Themes.java`). Glass is the default and Classic is the
-  plain 1.0 look with no pictures. More are coming.
+- **Six themes, zero setup:** each is a full look with its own background, tiles, font, subtle motion and
+  screensaver (see [Themes](#themes)). Clean is the default; Glass (Aerial) has eight bundled cozy photos
+  (public domain, see [CREDITS.md](CREDITS.md)) that crossfade every minute with a slow drift.
+- **Themes are pluggable** (`Theme.java`, `Themes.java`).
 - **Your apps, your order:** hold OK (or press Menu) on an app to add it to favourites, move it, hide it,
   open its info or uninstall it. New apps show up by themselves.
 - **Cozy look (optional):** your own picture(s), time-of-day switching, looping music with a volume setting,
   your own card art for favourite apps, soft fireflies. All from a folder on the TV.
-- **Screensaver:** the rotating wallpapers (or your Cozy picture) with a small clock, or a big clock on a dark
-  background with the Classic theme.
+- **Screensaver:** the theme's background (or your Cozy picture) with a small clock in the theme's font, or a
+  big clock on a dark background with the Clean theme.
 - **Home-button fix for Google TV (optional):** stops the Google TV home flashing up before your launcher.
 - **Light on memory:** made for 2 GB TVs. Pictures are decoded at screen size into GPU memory, and only the one
   on screen is kept (two for the few seconds of a crossfade). Music and animation stop the moment you open an app,
   and pictures are freed when the system needs memory.
-- **No network, no tracking, no ads.** About 3 MB (mostly the wallpapers). MIT licensed.
+- **No network, no tracking, no ads.** About 5 MB (mostly the pictures). MIT licensed.
 
 ## Cozy Home TV and tv-home
 
@@ -42,7 +41,7 @@ the same "make my TV fast and clean" idea and focuses on the launcher itself:
 
 | | tv-home | Cozy Home TV |
 |---|---|---|
-| Home screen | Dock + grid over rotating nature photos | Dock + frosted grid over rotating cozy photos (Glass), plain (Classic), or your own scene (Cozy) |
+| Home screen | Dock + grid over rotating nature photos | Dock + frosted grid over rotating cozy photos (Glass), plain (Clean), four themed looks, or your own scene (Cozy) |
 | Your own pictures | Replace files in the source and rebuild | Drop them in a folder on the TV, no rebuild |
 | Time-of-day pictures | – | Morning / day / evening / night |
 | Music | – | Your own track, looped, volume setting |
@@ -139,8 +138,9 @@ moments. Bring your own clips, see [docs/live-background.md](docs/live-backgroun
 
 Pick it on the TV (Settings > System > Ambient mode / Screensaver > **Cozy Home TV**) or run
 `scripts/set-home.sh <TV-IP> --screensaver`. Cozy look: your current picture with a small clock in a corner.
-Default look: the bundled wallpapers rotating with a small clock in a corner (Glass), or a big clock and the
-date on a dark background (Classic). The clock moves every 75 seconds so nothing burns in.
+Default look: the theme's background (the rotating photos in Glass, the room, city, starfield or arcade in
+the others, with their motion) and a small clock in the theme's font, or a big clock and the date on a dark
+background (Clean). The clock moves every 75 seconds so nothing burns in.
 
 ## Home-button fix (Google TV)
 
@@ -224,9 +224,21 @@ Chromecast with Google TV and others. Not Samsung (Tizen), LG (webOS) or Fire TV
 
 ## Themes
 
-Settings > **Theme** switches the Default look: **Glass** (default) or **Classic** (no pictures, lightest).
-Settings > **Change picture** sets how often the wallpaper changes (30 s to 15 min, or never), and
-**Little movements** turns the slow drift on or off.
+Settings > **Theme** shows all six with a small preview:
+
+| Theme | Background | Tiles | Font | Motion |
+|---|---|---|---|---|
+| **Clean** (default) | dark, no pictures (lightest) | plain rounded banners with a focus ring | system | none |
+| **Glass (Aerial)** | eight CC0 cozy photos that crossfade | big rounded tiles over frosted glass, tilt and shine | system | slow Ken Burns drift |
+| **Cozy Home** | illustrated living room, changes with the time of day | polaroids pegged to a string of fairy lights | Caveat | twinkling lights, floating dust |
+| **Neon City** | rainy neon skyline | thin cyan outlines that glow magenta | Share Tech Mono | rain, flickering signs, a glitch when the minute changes |
+| **Starship** | cockpit window on space | HUD panels with corner brackets | Orbitron | slowly drifting stars |
+| **Retro Arcade** | pixel-art arcade | game cartridges with labels | Press Start 2P | scanlines, twinkling pixel stars |
+
+The themed ones have short navigation sounds made in code (no audio files); they follow the system's
+sound-effects setting and Settings > Navigation sounds. **Little movements** turns all the motion off, and
+the motion always stops while an app is open. Settings > **Change picture** sets how often the Glass photo
+changes. A Cozy pack (Look > Cozy) replaces the background in any theme and keeps that theme's tiles and font.
 
 To make a theme, implement `Theme` (the background provider, layout, card style, clock font and sounds) and add
 it to `Themes.ALL`. Focus handling, the app menu, memory handling and the screensaver come for free. Bundled
@@ -235,7 +247,8 @@ each one needs a line in [CREDITS.md](CREDITS.md) with a licence that allows red
 
 ## Credits and licence
 
-Wallpapers: public domain (CC0), photographers and sources in [CREDITS.md](CREDITS.md).
-Code: MIT, see [LICENSE](LICENSE). Caveat font (used in the Cozy look): SIL Open Font License 1.1, see
-[assets/caveat-OFL.txt](assets/caveat-OFL.txt). Sample pictures: CC0. Inspired by
+Wallpapers: public domain (CC0), photographers and sources in [CREDITS.md](CREDITS.md). Theme art: original
+AI-generated pictures released as CC0. Code: MIT, see [LICENSE](LICENSE). Fonts (Caveat, Share Tech Mono,
+Orbitron, Press Start 2P): SIL Open Font License 1.1, licence files in [assets/](assets/caveat-OFL.txt) and
+[assets/fonts/](assets/fonts/). Sample pictures: CC0. Inspired by
 [tv-home](https://github.com/mihirgupta0900/tv-home).

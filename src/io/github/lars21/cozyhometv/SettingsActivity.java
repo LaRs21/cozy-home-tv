@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -120,7 +121,7 @@ public class SettingsActivity extends Activity {
             }
             r.value.setText(v);
             boolean cozyOnly = r.key.equals("period") || r.key.equals("music") || r.key.equals("volume");
-            boolean defaultOnly = r.key.equals("theme") || r.key.equals("wallpaper");
+            boolean defaultOnly = r.key.equals("wallpaper");
             r.view.setAlpha((cozyOnly && !prefs.cozy()) || (defaultOnly && prefs.cozy()) ? .55f : 1f);
         }
     }
@@ -145,7 +146,7 @@ public class SettingsActivity extends Activity {
                 sb.append("\n\nChanges are picked up automatically when you go back home.");
                 info("Cozy pack", sb.toString()); return;
             }
-            case "theme": { Theme[] all = Themes.ALL; int i = 0; for (int j = 0; j < all.length; j++) if (all[j].id().equals(prefs.theme())) i = j; prefs.setTheme(all[(i + 1) % all.length].id()); break; }
+            case "theme": themePicker(); return;
             case "wallpaper": { int[] o = Prefs.WALLPAPER_SECONDS; int i = 0; for (int j = 0; j < o.length; j++) if (o[j] == prefs.wallpaperSeconds()) i = j; prefs.setWallpaperSeconds(o[(i + 1) % o.length]); break; }
             case "period": { String[] ps = Prefs.PERIODS; int i = indexOf(ps, prefs.period()); prefs.setPeriod(ps[(i + 1) % ps.length]); break; }
             case "music": prefs.setMusic(!prefs.music()); break;
@@ -172,6 +173,42 @@ public class SettingsActivity extends Activity {
         int v = prefs.volume(); if (v < 0) { CozyPack p = CozyPack.load(this); v = p.defaultVolume; }
         int nv = Math.max(0, Math.min(100, v + dir * 5));
         prefs.setVolume(nv); refresh();
+    }
+
+    /** Theme picker: every theme with a small preview picture. Thumbnails are decoded small and freed on close. */
+    void themePicker() {
+        final Theme[] all = Themes.ALL; final Bitmap[] thumbs = new Bitmap[all.length]; final String cur = Themes.get(prefs.theme()).id();
+        for (int i = 0; i < all.length; i++) {
+            try (java.io.InputStream in = getAssets().open(all[i].previewAsset())) {
+                android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options(); o.inPreferredConfig = Bitmap.Config.RGB_565;
+                thumbs[i] = android.graphics.BitmapFactory.decodeStream(in, null, o);
+            } catch (Exception ignored) {}
+        }
+        android.widget.BaseAdapter ad = new android.widget.BaseAdapter() {
+            public int getCount() { return all.length; }
+            public Object getItem(int i) { return all[i]; }
+            public long getItemId(int i) { return i; }
+            public View getView(int i, View cv, android.view.ViewGroup parent) {
+                LinearLayout row = new LinearLayout(SettingsActivity.this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(d(24), d(14), d(24), d(14));
+                android.widget.ImageView iv = new android.widget.ImageView(SettingsActivity.this); iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                if (thumbs[i] != null) iv.setImageBitmap(thumbs[i]); else iv.setBackgroundColor(0xFF20242C);
+                iv.setClipToOutline(true); iv.setOutlineProvider(new android.view.ViewOutlineProvider() { @Override public void getOutline(View v, android.graphics.Outline o) { o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), d(10)); } });
+                row.addView(iv, new LinearLayout.LayoutParams(d(192), d(108)));
+                LinearLayout col = new LinearLayout(SettingsActivity.this); col.setOrientation(LinearLayout.VERTICAL); col.setPadding(d(24), 0, 0, 0);
+                TextView t = text((all[i].id().equals(cur) ? "✓  " : "") + all[i].label(), 28, TEXT); col.addView(t);
+                TextView sd = text(all[i].description(), 20, DIM); sd.setMaxLines(2); col.addView(sd);
+                row.addView(col, new LinearLayout.LayoutParams(0, -2, 1));
+                return row;
+            }
+        };
+        int sel = 0; for (int i = 0; i < all.length; i++) if (all[i].id().equals(cur)) sel = i;
+        AlertDialog dlg = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle("Theme")
+            .setAdapter(ad, (dd, which) -> { prefs.setTheme(all[which].id()); refresh(); })
+            .setNegativeButton("Cancel", null).create();
+        dlg.setOnDismissListener(dd -> { for (int i = 0; i < thumbs.length; i++) { if (thumbs[i] != null) thumbs[i].recycle(); thumbs[i] = null; } });
+        dlg.show();
+        final int s0 = sel; dlg.getListView().post(() -> { dlg.getListView().setSelection(s0); dlg.getListView().requestFocus(); });
     }
 
     void hiddenDialog() {
@@ -212,13 +249,13 @@ public class SettingsActivity extends Activity {
     String help(String key) {
         switch (key) {
             case "mode": return "Default: the selected theme, with no setup. Cozy: your own pictures and music from the CozyHome folder (replaces the theme's pictures).";
-            case "theme": return "Default look. Glass: bundled photos that slowly change, rounded tiles over frosted glass. Classic: dark and plain, no pictures (lightest).";
-            case "wallpaper": return "Glass theme and screensaver: how often the picture crossfades to the next one.";
+            case "theme": return "The whole look: background, tiles, fonts, motion and screensaver. Clean is the fastest. A Cozy pack (Look > Cozy) replaces the theme's background.";
+            case "wallpaper": return "Glass (Aerial) theme and screensaver: how often the photo crossfades to the next one.";
             case "folder": return "Where your pictures and music are read from, and what was found.";
             case "period": return "Cozy look: which picture to show. Follow the clock switches morning, day, evening and night by itself.";
             case "music": return "Cozy look: plays your music.mp3 on loop while the home screen is showing. Stops as soon as you open an app.";
             case "volume": return "Use ◀ ▶ to change.";
-            case "motion": return "A slow drift on the Glass pictures; in the Cozy look, soft fireflies (and the live background, if your pack has one).";
+            case "motion": return "Theme motion: photo drift, fairy lights, rain, stars, scanlines; fireflies and the live background in the Cozy look. Always paused while an app is open.";
             case "sounds": return "Small clicks when you move around (uses the TV's own sound setting).";
             case "hidden": return "Apps you hid from the home screen. Choose to show them again.";
             case "homefix": return "Optional: stops the Google TV flash when you press Home.";

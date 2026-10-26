@@ -19,6 +19,22 @@ Attribution isn't required, but we credit the photographers with thanks. The fil
 
 Want your own pictures instead? Use the Cozy look (see the README); your pack replaces these.
 
-## Font
+## Theme art (`assets/themes/`)
 
-- Caveat, © 2014 The Caveat Project Authors, SIL Open Font License 1.1 (`assets/caveat-OFL.txt`).
+The backgrounds of the Cozy Home (`cozy/morning|day|evening|night.jpg`, the same pictures as
+`examples/sample-cozy-pack/`), Neon City (`neon/bg.jpg`), Starship (`starship/bg.jpg`) and Retro Arcade
+(`arcade/bg.jpg`) themes are **original AI-generated art made for this project**, with no people, logos or text,
+and are released into the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+The preview thumbnails (`*/thumb.jpg`) are screenshots of the app and are under the same terms.
+The rain, signs, fairy lights, stars and scanlines are drawn in code. The navigation sounds are synthesized
+in code (`Synth.java`); there are no audio files.
+
+## Fonts
+
+All under the SIL Open Font License 1.1, from [google/fonts](https://github.com/google/fonts/tree/main/ofl).
+The licence text ships next to each font.
+
+- Caveat (Cozy look, Cozy Home theme), © 2014 The Caveat Project Authors (`assets/caveat-OFL.txt`).
+- Share Tech Mono (Neon City), © 2012 Carrois Type Design, Ralph du Carrois, Reserved Font Name "Share" (`assets/fonts/sharetechmono-OFL.txt`).
+- Orbitron (Starship), © 2018 The Orbitron Project Authors, Reserved Font Name "Orbitron" (`assets/fonts/orbitron-OFL.txt`).
+- Press Start 2P (Retro Arcade), © 2012 The Press Start 2P Project Authors, Reserved Font Name "Press Start 2P" (`assets/fonts/pressstart2p-OFL.txt`).

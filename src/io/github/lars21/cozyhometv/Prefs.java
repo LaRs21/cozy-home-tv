@@ -37,7 +37,7 @@ final class Prefs {
     boolean motion() { return sp.getBoolean("motion", true); }
     void setMotion(boolean on) { sp.edit().putBoolean("motion", on).apply(); }
 
-    /** Default-mode theme id (see Themes). */
+    /** Theme id (see Themes). A fresh install starts with the first one (Clean); setup can pick another. */
     String theme() { return sp.getString("theme", Themes.ALL[0].id()); }
     void setTheme(String id) { sp.edit().putString("theme", id).apply(); }
 

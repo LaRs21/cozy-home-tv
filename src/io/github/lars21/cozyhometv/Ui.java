@@ -3,6 +3,7 @@ package io.github.lars21.cozyhometv;
 import android.content.Context;
 import android.graphics.*;
 import android.graphics.drawable.Drawable;
+import android.os.SystemClock;
 import android.view.View;
 
 /** Small drawables and views (all sizes in device px). */
@@ -87,6 +88,78 @@ final class Ui {
         }
         void setColor(int color) { p.setColor(color); invalidate(); }
         @Override protected void onDraw(Canvas c) { c.drawPath(path, p); }
+    }
+
+
+    /**
+     * Base for cheap code-drawn motion (rain, stars, twinkling lights, scanlines). Redraws itself at a capped frame
+     * rate only while running; when stopped it keeps showing its last frame and costs nothing.
+     */
+    abstract static class Ambient extends View {
+        final long frameMs; boolean running; long t0 = SystemClock.uptimeMillis(), frozenAt = -1;
+        Ambient(Context c, int fps) { super(c); frameMs = 1000L / Math.max(1, fps); setWillNotDraw(false); }
+        void setRunning(boolean r) {
+            if (running == r) return; running = r;
+            long now = SystemClock.uptimeMillis();
+            if (r) { if (frozenAt >= 0) t0 += now - frozenAt; frozenAt = -1; postInvalidateOnAnimation(); } else frozenAt = now;
+        }
+        float seconds() { long now = frozenAt >= 0 ? frozenAt : SystemClock.uptimeMillis(); return (now - t0) / 1000f; }
+        @Override protected void onDraw(Canvas c) {
+            long start = SystemClock.uptimeMillis();
+            paint(c, seconds(), getWidth(), getHeight());
+            if (running) postInvalidateDelayed(Math.max(1, frameMs - (SystemClock.uptimeMillis() - start)));
+        }
+        @Override protected void onDetachedFromWindow() { setRunning(false); super.onDetachedFromWindow(); }
+        abstract void paint(Canvas c, float t, int w, int h);
+    }
+
+    /** A small soft round glow (white, tint it with a color filter or draw it with paint alpha). Made once, ~4 KB. */
+    static Bitmap glow(int size) {
+        Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888); Canvas c = new Canvas(b);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setShader(new RadialGradient(size / 2f, size / 2f, size / 2f, new int[]{0xFFFFFFFF, 0x88FFFFFF, 0x00FFFFFF}, new float[]{0f, .25f, 1f}, Shader.TileMode.CLAMP));
+        c.drawCircle(size / 2f, size / 2f, size / 2f, p); return b;
+    }
+
+    /**
+     * Drawn on top of an app picture: outline, HUD corner brackets, cartridge grip ridges. Reacts to focus.
+     * All sizes in device px.
+     */
+    static final class TileFrame extends View {
+        final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG), bracket = new Paint(Paint.ANTI_ALIAS_FLAG), ridge = new Paint(Paint.ANTI_ALIAS_FLAG);
+        final RectF r = new RectF(); final float radius, strokeW, bracketLen, ridgeTop, ridgeH; final int strokeColor, strokeFocus;
+        final boolean brackets, ridges; boolean focused;
+        TileFrame(Context c, float radius, float strokeW, int strokeColor, int strokeFocus, boolean brackets, int bracketColor, float bracketLen, boolean ridges, float ridgeTop, float ridgeH) {
+            super(c); this.radius = radius; this.strokeW = strokeW; this.strokeColor = strokeColor; this.strokeFocus = strokeFocus;
+            this.brackets = brackets; this.bracketLen = bracketLen; this.ridges = ridges; this.ridgeTop = ridgeTop; this.ridgeH = ridgeH;
+            stroke.setStyle(Paint.Style.STROKE); bracket.setStyle(Paint.Style.STROKE); bracket.setColor(bracketColor); bracket.setStrokeCap(Paint.Cap.SQUARE);
+            ridge.setColor(0x33000000);
+        }
+        void setFocusedLook(boolean f) { if (focused != f) { focused = f; invalidate(); } }
+        @Override protected void onDraw(Canvas c) {
+            int w = getWidth(), h = getHeight();
+            if (ridges) { float gap = ridgeH * 1.0f; for (float x = w * .18f; x < w * .82f; x += gap * 2) c.drawRect(x, ridgeTop, x + gap, ridgeTop + ridgeH, ridge); }
+            int sc = focused ? strokeFocus : strokeColor;
+            if (strokeW > 0 && Color.alpha(sc) > 0) { stroke.setColor(sc); stroke.setStrokeWidth(focused ? strokeW * 1.6f : strokeW); float i = stroke.getStrokeWidth() / 2; r.set(i, i, w - i, h - i); c.drawRoundRect(r, radius, radius, stroke); }
+            if (brackets) {
+                float L = bracketLen * (focused ? 1.4f : 1f), sw = focused ? Math.max(2, strokeW * 2.2f) : Math.max(1.5f, strokeW * 1.4f), o = sw / 2;
+                bracket.setStrokeWidth(sw); bracket.setAlpha(focused ? 255 : 170);
+                c.drawLine(o, o, o + L, o, bracket); c.drawLine(o, o, o, o + L, bracket);
+                c.drawLine(w - o, o, w - o - L, o, bracket); c.drawLine(w - o, o, w - o, o + L, bracket);
+                c.drawLine(o, h - o, o + L, h - o, bracket); c.drawLine(o, h - o, o, h - o - L, bracket);
+                c.drawLine(w - o, h - o, w - o - L, h - o, bracket); c.drawLine(w - o, h - o, w - o, h - o - L, bracket);
+            }
+        }
+    }
+
+    /** Little wooden clothes peg that holds a polaroid on the fairy-light string. */
+    static final class Peg extends View {
+        final Paint wood = new Paint(Paint.ANTI_ALIAS_FLAG), line = new Paint(Paint.ANTI_ALIAS_FLAG); final RectF r = new RectF();
+        Peg(Context c) { super(c); wood.setShader(null); wood.setColor(0xFFC89A63); line.setColor(0x66000000); }
+        @Override protected void onDraw(Canvas c) {
+            int w = getWidth(), h = getHeight(); r.set(0, 0, w, h); c.drawRoundRect(r, w * .25f, w * .25f, wood);
+            line.setStrokeWidth(Math.max(1, w * .08f)); c.drawLine(w / 2f, h * .1f, w / 2f, h * .9f, line);
+        }
     }
 
     /** 3-pass box blur (close to gaussian) on a small software bitmap. */

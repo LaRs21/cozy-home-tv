@@ -28,7 +28,7 @@ import java.util.Random;
 /**
  * Screensaver. Cozy look: the current time-of-day picture (or live background) with a small clock.
  * Default look: the theme's background (Glass: the bundled wallpapers, slowly rotating) with a small clock, or for
- * a theme without pictures (Classic) a calm dark gradient with a large clock and the date. The clock fades to a new spot every
+ * a theme without pictures (Clean) a calm dark gradient with a large clock and the date. The clock fades to a new spot every
  * 75 s against burn-in. Any key wakes the TV. Everything is freed in onDetachedFromWindow.
  */
 public class CozyDream extends DreamService {
@@ -73,9 +73,10 @@ public class CozyDream extends DreamService {
         pictures = cozy || backdrop != null;
         Typeface tf; try { tf = cozy ? Typeface.createFromAsset(getAssets(), "caveat.ttf") : theme.clockFont(this); } catch (Exception e) { tf = Typeface.DEFAULT; }
         clockBox = new LinearLayout(this); clockBox.setOrientation(LinearLayout.VERTICAL); clockBox.setGravity(Gravity.CENTER_HORIZONTAL);
-        clock = new TextView(this); clock.setTypeface(tf); clock.setTextColor(TEXT); clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, d(cozy ? 72 : pictures ? 64 : 150));
+        clock = new TextView(this); clock.setTypeface(tf); clock.setTextColor(TEXT); clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, d(cozy ? 72 : pictures ? Math.max(48, theme.layout().clockSize * .9f) : 150));
         clock.setShadowLayer(d(8), 0, d(2), 0xA0000000); clock.setFontFeatureSettings("tnum");
         date = new TextView(this); date.setTextColor(0xB3F4F1EA); date.setTextSize(TypedValue.COMPLEX_UNIT_PX, d(pictures ? 26 : 34)); date.setShadowLayer(d(6), 0, d(2), 0xA0000000);
+        if (!cozy) { theme.styleClock(clock, date, S); date.setTypeface(theme.labelFont(this)); }
         clockBox.addView(clock); clockBox.addView(date); clockBox.setAlpha(.85f);
         root.addView(clockBox, new FrameLayout.LayoutParams(-2, -2));
         updateClock(); moveClock(false);

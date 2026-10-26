@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.0 (unreleased)
+
+- Six themes, each a full look with its own background, tiles, font, subtle motion and screensaver:
+  **Clean** (the plain 1.0 look, now the default for a fresh install; was "Classic"), **Glass (Aerial)**,
+  and four new ones:
+  - **Cozy Home:** an illustrated living room that follows the time of day, polaroid tiles pegged to a string
+    of twinkling fairy lights, the Caveat handwriting font.
+  - **Neon City:** a rainy neon skyline with rain and flickering signs drawn in code, glowing cyan/magenta
+    outlined tiles, Share Tech Mono, and a short glitch on the clock when the minute changes.
+  - **Starship:** a cockpit window on a slowly drifting starfield, HUD tiles with thin cyan lines and corner
+    brackets, Orbitron.
+  - **Retro Arcade:** pixel art with subtle scanlines, apps as game cartridges with labels, Press Start 2P.
+- Settings > Theme opens a picker with a preview of each theme.
+- Short navigation sounds for the themed looks, synthesized in code (no audio files); they follow the system
+  sound-effects setting.
+- All motion follows Little movements, runs at a capped frame rate and stops while an app is open.
+- A Cozy pack now replaces the background in any theme and keeps the theme's tiles and fonts.
+- Script hook: `am start -n io.github.lars21.cozyhometv/.HomeActivity --es theme <id>`.
+- Theme art is original AI-generated art released as CC0; the fonts are OFL (see CREDITS.md).
+
 ## 1.1.0 (unreleased)
 
 - New default look, the **Glass** theme (Apple TV-like): eight bundled public-domain (CC0) cozy wallpapers
