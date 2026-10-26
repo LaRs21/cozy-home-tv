@@ -1,0 +1,12 @@
+{
+  "title": "Cozy Home",
+  "scenes": {
+    "morning": "morning.jpg",
+    "day": "day.jpg",
+    "evening": "evening.jpg",
+    "night": "night.jpg"
+  },
+  "times": { "morning": 6, "day": 11, "evening": 17, "night": 20 },
+  "music": { "file": "music.mp3", "volume": 40, "enabled": true },
+  "ambient": { "fireflies": true }
+}

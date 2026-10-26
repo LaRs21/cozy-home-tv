@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Cozy Home TV</string>
+    <string name="home_fix_label">Cozy Home TV: Home button</string>
+    <string name="home_fix_description">Optional. Catches only the Home button so it opens Cozy Home TV directly instead of flashing the Google TV home first. Hold Home for the system panel. Also opens Cozy Home TV once after the TV starts. Nothing on screen is read and no other buttons are touched.</string>
+</resources>

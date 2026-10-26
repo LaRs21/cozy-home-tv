@@ -1,0 +1,23 @@
+# build output
+build/
+dist/
+*.apk
+*.idsig
+!releases/*.apk
+
+# signing keys: never commit
+*.keystore
+*.jks
+*.p12
+*password*.txt
+keystore.properties
+
+# local / OS
+.DS_Store
+*.log
+debloat-*.log
+.snap-*.tgz
+.repo.tgz
+.idea/
+*.iml
+local.properties

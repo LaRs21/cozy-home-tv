@@ -1,0 +1,13 @@
+<resources>
+    <style name="HomeTheme" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/home_bg</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:colorAccent">#F4F1EA</item>
+    </style>
+    <style name="SettingsTheme" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Translucent</item>
+        <item name="android:colorAccent">#F4F1EA</item>
+    </style>
+</resources>

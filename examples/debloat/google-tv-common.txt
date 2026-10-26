@@ -1,0 +1,20 @@
+# Starting list for scripts/debloat.sh on Google TV / Android TV.
+# Read every line. Delete (or comment out with #) anything you use. Nothing here is uninstalled;
+# scripts/debloat.sh disables apps reversibly and writes a log you can undo with --undo.
+# Protected packages (stock launcher, Live TV/tuner, OTA updates, Play services/Store, setup, remote) are refused
+# by the script even if you add them here.
+
+# --- Optional Google apps ---
+com.google.android.youtube.tvmusic     # YouTube Music
+com.google.android.play.games          # Google Play Games
+
+# --- Screensavers (only if you use Cozy Home TV's screensaver) ---
+com.android.dreams.basic               # the basic "Colors" screensaver
+# com.google.android.apps.tv.dreamx    # Google TV ambient photo screensaver
+
+# --- Casting (only if nobody casts from a phone; frees ~20-40 MB RAM) ---
+# com.google.android.apps.mediashell   # Chromecast built-in
+
+# --- Be careful ---
+# com.google.android.katniss           # Google Assistant / voice search: the mic button stops working
+# com.google.android.videos            # Google TV "Shop"/movies: on some Google TV builds the stock UI depends on it
