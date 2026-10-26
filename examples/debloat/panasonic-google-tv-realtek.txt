@@ -1,0 +1,27 @@
+# Panasonic Google TV with a Realtek chip (Google TV 14, 2 GB RAM).
+# match-brand: panasonic
+# match-package: com.realtek.tv
+#
+# Based only on the changes actually made on one TV of this kind (26-27 Oct 2026, logged with undo commands).
+# Nothing else is listed on purpose: add a line only after you have tried it on your own TV.
+# Format and tiers: see google-tv-common.txt.
+#
+# Learned on this TV (the protect list in scripts/lib.sh enforces these):
+#  - never turn off com.google.android.apps.tv.launcherx: its dashboard runs the Settings-button panel
+#  - never touch com.realtek.tv (Live TV): it is the viewer for the tuner and the HDMI/AV inputs
+#  - don't use `adb shell screenrecord` on this TV (it crashed it); use `adb exec-out screencap -p`
+#  - `pm clear --cache-only` hangs here; `pm trim-caches 64G` works if you want to clear app caches
+#
+# Undo: ./restore.sh, or by hand:  adb -s <TV>:5555 shell pm enable <package>
+
+# --- Optional Google apps (removed for user 0 on the tested TV; here they are only turned off) ---
+safe com.google.android.youtube.tvmusic     # YouTube Music
+safe com.google.android.play.games          # Google Play Games
+
+# --- Casting: only if nobody in the house casts from a phone ---
+ask  com.google.android.apps.mediashell     # Chromecast built-in: phones can't cast to the TV any more
+ask  com.realtek.airplay2                   # AirPlay: iPhones/Macs can't AirPlay to the TV any more
+ask  com.apps.scast                         # Panasonic screen mirroring
+
+# --- Spotify (only if installed): keeps working when you open it, just stops starting by itself at boot ---
+ask  com.spotify.tv.android bg              # stop Spotify running in the background (cmd appops RUN_ANY_IN_BACKGROUND ignore)

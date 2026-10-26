@@ -1,20 +1,26 @@
-# Starting list for scripts/debloat.sh on Google TV / Android TV.
-# Read every line. Delete (or comment out with #) anything you use. Nothing here is uninstalled;
-# scripts/debloat.sh disables apps reversibly and writes a log you can undo with --undo.
-# Protected packages (stock launcher, Live TV/tuner, OTA updates, Play services/Store, setup, remote) are refused
-# by the script even if you add them here.
+# Starting list for Google TV / Android TV (used when no brand list matches the TV).
+# ./setup.sh offers it as tiers; scripts/debloat.sh can try it by hand.
+#
+# Format:  <tier> <package> [bg]   # what it is / what you lose
+#   safe  optional apps you can turn off without side effects
+#   more  safe, plus apps most people don't need (read the note)
+#   ask   asked one by one, never turned off without a yes (skipped with --yes)
+#   bg    don't turn the app off; only stop it running in the background
+# Apps are only turned off (pm disable-user --user 0), never uninstalled; ./restore.sh turns them back on.
+# The protect list in scripts/lib.sh (launchers, setup, Play services/Store, keyboards, Live TV / tuner / HDMI,
+# OTA, network, System UI, chip-vendor system apps) is enforced whatever this file says.
 
 # --- Optional Google apps ---
-com.google.android.youtube.tvmusic     # YouTube Music
-com.google.android.play.games          # Google Play Games
+safe com.google.android.youtube.tvmusic     # YouTube Music (the YouTube app keeps working)
+safe com.google.android.play.games          # Google Play Games
 
 # --- Screensavers (only if you use Cozy Home TV's screensaver) ---
-com.android.dreams.basic               # the basic "Colors" screensaver
-# com.google.android.apps.tv.dreamx    # Google TV ambient photo screensaver
+more com.android.dreams.basic               # the basic "Colors" screensaver
+# com.google.android.apps.tv.dreamx         # Google TV ambient photo screensaver: left on, Google TV settings use it
 
-# --- Casting (only if nobody casts from a phone; frees ~20-40 MB RAM) ---
-# com.google.android.apps.mediashell   # Chromecast built-in
+# --- Casting ---
+ask  com.google.android.apps.mediashell     # Chromecast built-in: phones can no longer cast to the TV; frees ~20-40 MB RAM
 
-# --- Be careful ---
-# com.google.android.katniss           # Google Assistant / voice search: the mic button stops working
-# com.google.android.videos            # Google TV "Shop"/movies: on some Google TV builds the stock UI depends on it
+# --- Not offered: they break things on some Google TV builds ---
+# com.google.android.katniss                # Google Assistant / voice search: the mic button stops working
+# com.google.android.videos                 # Google TV "Shop"/movies: on some builds the stock UI depends on it

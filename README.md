@@ -15,8 +15,44 @@ while you choose what to watch.
 
 > Screenshots from the Android TV emulator. Photos on a real TV coming soon.
 
+## Quick start: one command
+
+On a Mac or Linux computer on the same Wi-Fi as the TV:
+
+```bash
+git clone https://github.com/LaRs21/cozy-home-tv && cd cozy-home-tv
+./setup.sh
+```
+
+It walks you through everything and asks before it changes anything:
+
+1. checks for `adb` and offers to install it (Homebrew, or Google's platform-tools download),
+2. finds the TV, or pairs with it (Android 11+ wireless debugging), with on-screen steps for developer mode,
+3. identifies the brand, model and chip and picks the matching debloat list,
+4. **writes a backup record of the TV's settings, plus a plain-adb undo script, before any change**,
+5. lets you pick one of six themes (Clean is the default),
+6. optionally turns off apps you don't use (off by default; none / safe / more),
+7. optionally copies your own pictures and music (a Cozy pack),
+8. installs the signed release APK after checking its SHA-256,
+9. makes it the home screen with the Home-button service (Google's launcher stays on), presses Home from
+   inside another app to prove it works, and puts everything back by itself if it doesn't,
+10. sets the screensaver, shows a final check and reminds you to turn debugging off.
+
+```bash
+./setup.sh --dry-run                       # print every command it would run on the TV; change nothing
+./setup.sh --yes --ip 192.168.1.50 --theme neon            # no questions, defaults for the rest
+./setup.sh --ip 192.168.1.50 --debloat safe --pack my-pictures/
+./restore.sh --ip 192.168.1.50             # undo everything, from the backup record
+./doctor.sh --ip 192.168.1.50              # read-only health check (after a TV update or reboot)
+```
+
+`./setup.sh --help` lists every option. Windows: not yet (WSL may work but is untested).
+Prefer a coding agent? Paste [PROMPT.md](PROMPT.md).
+
 ## Features
 
+- **One command:** `./setup.sh` installs, sets Home, picks a theme and can debloat, with a backup record, a
+  dry run and a full undo (`./restore.sh`).
 - **Six themes, zero setup:** each is a full look with its own background, tiles, font, subtle motion and
   screensaver (see [Themes](#themes)). Clean is the default; Glass (Aerial) has eight bundled cozy photos
   (public domain, see [CREDITS.md](CREDITS.md)) that crossfade every minute with a slow drift.
@@ -33,34 +69,31 @@ while you choose what to watch.
   and pictures are freed when the system needs memory.
 - **No network, no tracking, no ads.** About 5 MB (mostly the pictures). MIT licensed.
 
-## Cozy Home TV and tv-home
+## How it compares with other approaches
 
-[tv-home](https://github.com/mihirgupta0900/tv-home) debloats a slow Android TV over Wi-Fi and gives it a
-tiny Apple TV-style home with nature wallpapers, set up with one prompt to a coding agent. Cozy Home TV takes
-the same "make my TV fast and clean" idea and focuses on the launcher itself:
+There are a few common ways to get a calmer Android TV home screen. All of them are reasonable; they make
+different trade-offs.
 
-| | tv-home | Cozy Home TV |
-|---|---|---|
-| Home screen | Dock + grid over rotating nature photos | Dock + frosted grid over rotating cozy photos (Glass), plain (Clean), four themed looks, or your own scene (Cozy) |
-| Your own pictures | Replace files in the source and rebuild | Drop them in a folder on the TV, no rebuild |
-| Time-of-day pictures | – | Morning / day / evening / night |
-| Music | – | Your own track, looped, volume setting |
-| Reorder / hide apps on the TV | Edit `config.xml` and rebuild | Hold OK on an app |
-| Screensaver | – | Picture + clock, or big clock |
-| Google TV Home flash | Disable the setup app | Optional accessibility fix, stock apps untouched |
-| Debloat | Main feature, per-model lists | Optional script with a protected list and undo log |
-| One-prompt agent setup | Yes | Yes ([PROMPT.md](PROMPT.md)) |
+| | Debloat only | Replace the launcher by turning off the stock one | Closed-source launcher app | Cozy Home TV |
+|---|---|---|---|---|
+| What changes | stock apps turned off or removed | the stock launcher (and on Google TV its setup app) turned off | a launcher from the Play Store | an open-source launcher next to the stock one |
+| Google TV features (Settings button panel, casting, profiles) | kept | can be lost, and Wi-Fi can drop on some TVs | usually kept | kept: the stock launcher stays on |
+| Setup | a script or an agent prompt | a script or an agent prompt | install from the store, then settings on the TV | `./setup.sh`, or an agent prompt |
+| Undo | depends on the tool's log | re-enable the stock apps | uninstall | `./restore.sh` from a backup record, or the generated plain-adb script |
+| Build tools needed | no | often (build the launcher yourself) | no | no (signed APK with a checksum); building is optional |
 
-Thanks to tv-home for the idea and for documenting its gotchas.
+Thanks to [tv-home](https://github.com/mihirgupta0900/tv-home) and the projects around it for the idea and
+for documenting what they learned on real TVs.
 
-## Install
+## Manual install (step by step)
 
-You need a computer with `adb` (macOS: `brew install android-platform-tools`) on the same Wi-Fi as the TV.
+`./setup.sh` does all of this. To do it by hand you need a computer with `adb` (macOS: `brew install android-platform-tools`) on the same Wi-Fi as the TV.
 
 1. **On the TV:** Settings > System > About > press OK on **Build** 7 times. Back > Developer options >
    turn on **USB debugging** (and **Network/Wireless debugging** if listed). Note the TV's IP address
    (Settings > Network).
-2. **Get the APK:** download `cozy-home-tv-<version>.apk` from [Releases](../../releases), or build it (below).
+2. **Get the APK:** download `cozy-home-tv-<version>.apk` and its `.sha256` from [Releases](../../releases)
+   (check it: `shasum -a 256 -c cozy-home-tv-<version>.apk.sha256`), or build it (below).
 3. **Install and set as home:**
 
    ```bash
@@ -74,7 +107,7 @@ You need a computer with `adb` (macOS: `brew install android-platform-tools`) on
 
    ```bash
    adb connect 192.168.1.50:5555
-   adb install -r cozy-home-tv-1.0.0.apk
+   adb install -r cozy-home-tv-1.2.0.apk
    adb shell cmd package set-home-activity io.github.lars21.cozyhometv/.HomeActivity
    adb shell cmd role add-role-holder android.app.role.HOME io.github.lars21.cozyhometv   # Android 10+
    ```
@@ -86,6 +119,37 @@ You need a computer with `adb` (macOS: `brew install android-platform-tools`) on
 Open this repo in Claude Code, Cursor or another coding agent and paste the prompt in **[PROMPT.md](PROMPT.md)**.
 It finds the TV, builds and installs the app, and asks you about the Home-button fix, the screensaver,
 the Cozy look and debloating before changing anything.
+
+## Safety: what it never touches, and how to undo
+
+**Before it changes anything,** `setup.sh` saves a backup record in `~/.cozy-home-tv/tvs/<TV>/`: which apps
+are on or off, which app opens on Home, the accessibility services, the screensaver and the animation
+settings. The **first record is never overwritten**, so a second run can't hide the TV's original state.
+Next to it is `restore-<TV>.sh`, plain `adb` commands that undo everything even without this repo, and
+`changes-<time>.log`, every command that changed the TV.
+
+**It never:**
+
+- uninstalls anything (apps are only turned off with `pm disable-user`, and only if you choose a tier),
+- turns off the stock launcher (`launcherx` / `tvlauncher`) or Google TV's setup app (`setupwraith`), so the
+  Settings button, casting and the saved Wi-Fi keep working,
+- touches Google Play services or the Play Store, keyboards, Live TV / tuner / HDMI input apps, system updates
+  (OTA), network and Wi-Fi, System UI, or the chip vendors' (Realtek, MediaTek, MStar) system packages. This
+  protect list is in the code (`scripts/lib.sh`) and a list file can't override it,
+- changes the display size or density, reboots the TV, or uses `screenrecord`,
+- sends anything anywhere: no network access in the app, no tracking.
+
+**Undo:**
+
+```bash
+./restore.sh --ip 192.168.1.50                         # apps back on, Home, accessibility and screensaver as recorded
+./restore.sh --ip 192.168.1.50 --uninstall --remove-pack   # ...and remove the app and the Cozy pack copy
+./restore.sh --ip 192.168.1.50 --dry-run               # see what it would do first
+sh ~/.cozy-home-tv/tvs/<TV>/restore-<TV>.sh 192.168.1.50:5555   # without this repo
+```
+
+`restore.sh` only turns back on the apps setup turned off (apps that were already off stay off; `--all` puts
+back everything that differs from the record).
 
 ## Using it
 
@@ -157,37 +221,59 @@ TV Settings > Accessibility > **Cozy Home TV: Home button**, the in-app Settings
 
 ## Optional: debloat
 
-`scripts/debloat.sh` disables apps you don't use, reversibly (never uninstalls) and writes a log for undo.
-It is a dry run unless you add `--apply`.
+`./setup.sh` offers three tiers; nothing is turned off unless you pick one:
+
+| Tier | Turns off |
+|---|---|
+| **none** (default) | nothing |
+| **safe** | optional apps from the TV's list that are known to be safe to turn off, plus "ask" apps one by one (casting, background apps) |
+| **more** | safe, plus a few more most people don't need (e.g. the basic Colors screensaver) |
+
+Lists live in `examples/debloat/`. Setup picks one by the TV's brand, chip and installed packages
+(`# match-brand:`, `# match-chip:`, `# match-package:` headers) and falls back to `google-tv-common.txt`.
+Each line is `<tier> <package> [bg]  # what you lose`; `bg` only stops the app running in the background.
+
+- `google-tv-common.txt`: any Google TV / Android TV.
+- `panasonic-google-tv-realtek.txt`: Panasonic Google TV with a Realtek chip. It lists only what was actually
+  changed on one such TV: YouTube Music and Play Games (safe), and Chromecast built-in, AirPlay, Panasonic
+  screen mirroring and Spotify's background running (ask).
+
+To try a list by hand (dry run unless you add `--apply`; it writes a backup record first):
 
 ```bash
-cp examples/debloat/google-tv-common.txt my-list.txt   # delete the lines you want to keep
-scripts/debloat.sh 192.168.1.50 my-list.txt            # see what would happen
-scripts/debloat.sh 192.168.1.50 my-list.txt --apply
-scripts/debloat.sh 192.168.1.50 --undo debloat-20261027-120000.log
+scripts/debloat.sh 192.168.1.50 my-list.txt safe
+scripts/debloat.sh 192.168.1.50 my-list.txt more --apply
 ```
 
-It refuses to touch these, even if listed:
-
-- **The stock launcher.** On Google TV it also runs the Settings-button quick panel. Keep it installed and
-  enabled; Cozy Home TV just takes over the Home screen.
-- **Live TV / tuner / TV input apps.** They switch HDMI inputs.
-- **System updates (OTA), Google Play services, Play Store, setup, TV settings, remote/Bluetooth, keyboards.**
+The protect list (see [Safety](#safety-what-it-never-touches-and-how-to-undo)) is refused whatever the list says.
 
 ## Uninstall / restore
 
-```bash
-scripts/restore.sh 192.168.1.50               # stock home, screensaver and accessibility back to normal
-scripts/restore.sh 192.168.1.50 --uninstall   # ...and remove the app
-scripts/restore.sh 192.168.1.50 --uninstall --remove-pack   # ...and delete /sdcard/CozyHome
-```
+See [Safety](#safety-what-it-never-touches-and-how-to-undo): `./restore.sh --ip <TV> [--uninstall] [--remove-pack]`.
+`scripts/restore.sh` still works and runs the same thing.
+
+## Troubleshooting
+
+Run `./doctor.sh --ip <TV>` first. It only reads, and says what to run for anything it finds.
+
+- **"Could not talk to ... (state: unauthorized)":** accept "Allow debugging?" on the TV and tick Always allow.
+- **Can't connect on Android 11+:** use `./setup.sh --pair <ip:port> --code <code>` with the numbers from
+  Developer options > Wireless debugging > Pair device with pairing code, then the IP:port shown there.
+- **macOS says "No route to host"** although the TV is on: allow your terminal in System Settings > Privacy &
+  Security > Local Network.
+- **Home test failed and setup put Home back:** some TVs ignore other home apps (for example some TCL/FFALCON
+  and Xiaomi PatchWall builds). Nothing else is left half-done; `./restore.sh` undoes the rest.
+- **Home goes to the stock home after a TV reboot:** some TVs turn accessibility services off on reboot.
+  `./doctor.sh` shows it; `scripts/set-home.sh <TV> --home-fix` turns it back on.
+- **INSTALL_FAILED_UPDATE_INCOMPATIBLE:** a copy signed with another key is installed. `./setup.sh --reinstall`
+  removes it first (its favourites and hidden apps are reset).
 
 ## Build it yourself
 
 Needs JDK 17 and the Android SDK (`platforms;android-34`, any `build-tools` 34+). No Gradle.
 
 ```bash
-./build.sh                                   # debug-signed: dist/cozy-home-tv-<version>-debug.apk
+./build.sh                                   # debug-signed: dist/cozy-home-tv-<version>-debug.apk (+ .sha256)
 
 # release-signed with your own key (keep the keystore outside the repo)
 keytool -genkeypair -keystore ~/cozy-release.keystore -alias cozyhometv -keyalg RSA -keysize 4096 -validity 10000
@@ -196,7 +282,12 @@ COZY_KEYSTORE=~/cozy-release.keystore COZY_KEYSTORE_PASS_FILE=~/cozy-release-pas
 
 Variables: `COZY_KEYSTORE`, `COZY_KEYSTORE_PASS` or `COZY_KEYSTORE_PASS_FILE`, `COZY_KEY_ALIAS` (default
 `cozyhometv`), `COZY_KEY_PASS`, `ANDROID_SDK`, `JAVA_HOME`, `BUILD_TOOLS`.
+Each build writes `<apk>.sha256` next to the APK; `setup.sh` refuses an APK whose checksum doesn't match.
 An install signed with one key can't be updated with an APK signed by another key: uninstall first.
+
+Scripts: `setup.sh`, `restore.sh`, `doctor.sh` and the single-step tools in `scripts/` (`install.sh`,
+`set-home.sh`, `push-cozy-pack.sh`, `debloat.sh`) share `scripts/lib.sh` (TV connection, dry run, protect
+list, backup records). They are plain bash 3.2+ and pass `shellcheck`.
 
 Code map: `src/io/github/lars21/cozyhometv/` has `HomeActivity` (home screen), `SettingsActivity`,
 `CozyPack` (folder + config), `Scene` (image decoding, still/live backgrounds), `CozyDream` (screensaver),
@@ -224,6 +315,12 @@ Chromecast with Google TV and others. Not Samsung (Tizen), LG (webOS) or Fire TV
 
 ## Themes
 
+| | | |
+|---|---|---|
+| ![Clean](docs/screenshots/theme-clean.jpg) **Clean** (default) | ![Glass](docs/screenshots/theme-glass.jpg) **Glass (Aerial)** | ![Cozy Home](docs/screenshots/theme-cozy.jpg) **Cozy Home** |
+| ![Neon City](docs/screenshots/theme-neon.jpg) **Neon City** | ![Starship](docs/screenshots/theme-starship.jpg) **Starship** | ![Retro Arcade](docs/screenshots/theme-arcade.jpg) **Retro Arcade** |
+
+Pick one in `./setup.sh` (`--theme clean|glass|cozy|neon|starship|arcade`) or on the TV:
 Settings > **Theme** shows all six with a small preview:
 
 | Theme | Background | Tiles | Font | Motion |

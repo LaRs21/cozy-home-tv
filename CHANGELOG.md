@@ -19,6 +19,18 @@
 - A Cozy pack now replaces the background in any theme and keeps the theme's tiles and fonts.
 - Script hook: `am start -n io.github.lars21.cozyhometv/.HomeActivity --es theme <id>`.
 - Theme art is original AI-generated art released as CC0; the fonts are OFL (see CREDITS.md).
+- **One-command setup** for macOS and Linux: `./setup.sh` (interactive, `--dry-run`, `--yes`, `--theme`,
+  `--debloat`, `--pack`, `--pair`). It checks/installs adb, finds or pairs the TV, identifies brand, model and
+  chip, writes a backup record and a plain-adb undo script before any change (the first record is never
+  overwritten), offers the six themes, optional debloat tiers (none / safe / more, disable only, with a hard
+  protect list), an optional Cozy pack, installs the signed APK after a SHA-256 check, sets Home with the
+  Home-button service (the stock launcher stays on), tests Home from inside another app and rolls back if it
+  fails, sets the screensaver and reminds you to turn debugging off.
+- `./restore.sh` undoes everything from the backup record; `./doctor.sh` is a read-only health check.
+- Debloat lists use tiers and match headers; new `examples/debloat/panasonic-google-tv-realtek.txt`.
+- `build.sh` writes `<apk>.sha256` next to every APK.
+- `scripts/*.sh` accept any adb serial (USB, emulator, IP:port) and share the protect list and records;
+  `scripts/restore.sh` now runs `./restore.sh`.
 
 ## 1.1.0 (unreleased)
 

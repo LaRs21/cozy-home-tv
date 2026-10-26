@@ -30,7 +30,7 @@ if [ -z "$SDK" ]; then for s in "$HOME/Library/Android/sdk" "$HOME/Android/Sdk";
 [ -d "$SDK" ] || { echo "Android SDK not found: set ANDROID_SDK"; exit 1; }
 JAR="$SDK/platforms/android-34/android.jar"
 [ -f "$JAR" ] || { echo "Missing $JAR: sdkmanager 'platforms;android-34'"; exit 1; }
-BTV="${BUILD_TOOLS:-$(ls "$SDK/build-tools" | sort -V | tail -1)}"
+BTV="${BUILD_TOOLS:-$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -1)}"
 BT="$SDK/build-tools/$BTV"
 [ -x "$BT/aapt" ] || { echo "Missing build-tools in $SDK/build-tools"; exit 1; }
 
@@ -67,4 +67,6 @@ else
 fi
 rm -f "$OUT.idsig"
 "$BT/apksigner" verify "$OUT"
-echo "== Built $OUT ($(du -h "$OUT" | cut -f1))"
+# checksum next to the APK, in the format `shasum -a 256 -c` / `sha256sum -c` understand (setup.sh checks it)
+(cd "$DIST" && if command -v sha256sum >/dev/null 2>&1; then sha256sum "$(basename "$OUT")"; else shasum -a 256 "$(basename "$OUT")"; fi) > "$OUT.sha256"
+echo "== Built $OUT ($(du -h "$OUT" | cut -f1)), sha256 $(cut -d' ' -f1 "$OUT.sha256")"

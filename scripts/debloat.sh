@@ -1,49 +1,55 @@
 #!/usr/bin/env bash
-# OPTIONAL. Reversibly disable apps you don't use. Nothing is uninstalled; every change is logged for undo.
+# Advanced: turn off apps from a list by hand. ./setup.sh does the same with tiers; use this to try a list.
+# Nothing is uninstalled. A backup record is written first, so ./restore.sh undoes it.
 #
-#   scripts/debloat.sh <TV-IP> <list.txt>            # dry run: shows what would be disabled
-#   scripts/debloat.sh <TV-IP> <list.txt> --apply    # do it (writes debloat-<date>.log)
-#   scripts/debloat.sh <TV-IP> --undo <debloat-xxx.log>
+#   scripts/debloat.sh <TV-IP|serial> <list.txt> [safe|more|ask]        # dry run: what would be turned off
+#   scripts/debloat.sh <TV-IP|serial> <list.txt> [safe|more|ask] --apply
+#   scripts/debloat.sh <TV-IP|serial> --undo <changes-or-debloat.log>    # turn those back on
 #
-# list.txt: one package per line, # for comments. Start from examples/debloat/google-tv-common.txt
-# and delete the lines you want to keep. Ask yourself for each one: "do I use this?"
-#
-# Hard safety list (refused even if listed). Learned the hard way:
-#  - the stock launcher (com.google.android.apps.tv.launcherx / tvlauncher): on Google TV it also runs the
-#    Settings-button quick panel; disabling it breaks Settings
-#  - Live TV / tuner / TV input apps: they switch HDMI inputs
-#  - system updates (OTA), Google Play services / Play Store, setup, settings, remote/Bluetooth, keyboards
+# Tiers: safe = only "safe" lines (default), more = safe + more, ask = every line including "ask" ones.
+# The protect list in scripts/lib.sh is hard-coded and refuses launchers, setup, Play services, keyboards,
+# Live TV / tuner / HDMI inputs, OTA, network, System UI and chip-vendor system packages, whatever the list says.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=scripts/lib.sh
 . scripts/lib.sh
 ADDR="${1:-}"; shift || true
-
-PROTECTED_REGEX='^(android|com\.android\.(systemui|tv\.settings|providers\..*|bluetooth|vending|shell|phone|externalstorage|packageinstaller|permissioncontroller|inputdevices|tv)|com\.google\.android\.(apps\.tv\.launcherx|tvlauncher|gms|gsf|gms\..*|tv|tv\.remote\.service|tungsten\.setupwraith|leanback\.ime|inputmethod\..*|tvrecommendations|apps\.tv\.launcherx\..*|permissioncontroller|ext\.services|ext\.shared|packageinstaller|configupdater|partnersetup|onetimeinitializer)|io\.github\.lars21\.cozyhometv)$|tuner|tvinput|tvcenter|wwtv|\.ota|ota\.|fota|update|systemupdate|remote|keyboard|realtek\.tv$|setup'
 
 if [ "${1:-}" = "--undo" ]; then
   LOG="${2:-}"; [ -f "$LOG" ] || die "log not found: $LOG"
   connect_tv "$ADDR"
-  grep -E '^disabled ' "$LOG" | awk '{print $2}' | while read -r p; do
+  { sed -n 's/.*pm disable-user --user 0 \([^ ]*\).*/\1/p' "$LOG"; sed -n 's/^disabled \([^ ]*\).*/\1/p' "$LOG"; } | sort -u | while read -r p; do
     echo "enable $p"; "$ADB" -s "$SERIAL" shell pm enable "$p" </dev/null >/dev/null || echo "  (failed: $p)"
   done
   echo "Done."; exit 0
 fi
 
-LIST="${1:-}"; APPLY="${2:-}"
+LIST="${1:-}"; shift || true
 [ -f "$LIST" ] || die "give a list file, e.g. examples/debloat/google-tv-common.txt"
+TIER=safe; APPLY=0
+for a in "$@"; do case "$a" in safe|more|ask) TIER="$a" ;; --apply) APPLY=1 ;; *) die "unknown option $a" ;; esac; done
 connect_tv "$ADDR"
-INSTALLED="$(sh_tv pm list packages -e | tr -d '\r' | sed 's/^package://')"
-LOG="debloat-$(date +%Y%m%d-%H%M%S).log"
-[ "$APPLY" = "--apply" ] && echo "# scripts/debloat.sh on $SERIAL $(date)" > "$LOG"
-
-grep -vE '^\s*(#|$)' "$LIST" | awk '{print $1}' | while read -r p; do
-  if printf '%s' "$p" | grep -qE "$PROTECTED_REGEX"; then echo "SKIP (protected)  $p"; continue; fi
-  if ! printf '%s\n' "$INSTALLED" | grep -qx "$p"; then echo "skip (not found)  $p"; continue; fi
-  if [ "$APPLY" = "--apply" ]; then
-    # one pm call per shell: chained pm commands can silently stop after the first
-    if "$ADB" -s "$SERIAL" shell pm disable-user --user 0 "$p" </dev/null | grep -q "disabled"; then echo "disabled $p" | tee -a "$LOG"; else echo "FAILED   $p"; fi
+ENABLED="$(sh_tv pm list packages -e | sed 's/^package://')"
+if [ "$APPLY" = 1 ]; then
+  TVDIR="$(tv_dir)"; TS="$(date +%Y%m%d-%H%M%S)"; mkdir -p "$TVDIR"
+  write_record "$TVDIR/record-$TS.txt"
+  [ -f "$TVDIR/record-first.txt" ] || cp "$TVDIR/record-$TS.txt" "$TVDIR/record-first.txt"
+  CHANGES_FILE="$TVDIR/changes-$TS.log"; : > "$CHANGES_FILE"
+  echo "Backup record: $TVDIR/record-$TS.txt"
+fi
+TAB="$(printf '\t')"
+while IFS="$TAB" read -r t p act why <&3; do
+  case "$TIER:$t" in safe:more|safe:ask|more:ask) continue ;; esac
+  if is_protected "$p"; then echo "SKIP (protected)  $p"; continue; fi
+  if ! printf '%s\n' "$ENABLED" | grep -qx "$p"; then echo "skip (not on/off already)  $p"; continue; fi
+  if [ "$APPLY" = 1 ]; then
+    if [ "$act" = bg ]; then run_tv cmd appops set "$p" RUN_ANY_IN_BACKGROUND ignore; echo "no background  $p"
+    elif run_tv pm disable-user --user 0 "$p" | grep -q disabled; then echo "disabled $p"; else echo "FAILED   $p"; fi
   else
-    echo "would disable     $p"
+    echo "would $([ "$act" = bg ] && echo 'stop background for' || echo 'disable')  $p   # $why"
   fi
-done
-if [ "$APPLY" = "--apply" ]; then echo; echo "Undo with: scripts/debloat.sh ${ADDR} --undo $LOG"; else echo; echo "Dry run only. Add --apply to do it."; fi
+done 3<<LST
+$(list_entries "$LIST")
+LST
+if [ "$APPLY" = 1 ]; then echo; echo "Undo with: ./restore.sh --serial $SERIAL   (or scripts/debloat.sh $SERIAL --undo $CHANGES_FILE)"
+else echo; echo "Dry run only. Add --apply to do it."; fi
