@@ -3,8 +3,9 @@
 **A fast, clean home screen for Android TV and Google TV, with an optional cozy look made from your own
 pictures and music.**
 
-Out of the box it is a calm, Alpine-style launcher: a clock, your favourite apps, every other app in a grid,
-no ads, no rows of recommendations. Switch on the **Cozy look** and your home screen becomes a picture you
+Out of the box it's a calm launcher in an Apple TV-like style: cozy photos that slowly crossfade, a clock in
+the corner, a dock of your favourite apps with big rounded tiles over frosted glass, and every other app in a
+grid below. No ads, no rows of recommendations. (Prefer it plain? Settings > Theme > Classic.) Switch on the **Cozy look** and your home screen becomes a picture you
 love (one picture, or a different one for morning, day, evening and night) with your own music playing softly
 while you choose what to watch.
 
@@ -15,17 +16,23 @@ while you choose what to watch.
 
 ## Features
 
-- **Default look, zero setup:** dark background, clock and date, favourites row, all-apps grid with TV banners,
-  smooth remote navigation. No pictures, no music, nothing running in the background.
+- **Default look, zero setup (Glass theme):** eight bundled cozy photos (public domain, see [CREDITS.md](CREDITS.md))
+  that crossfade every minute (configurable) with a gentle slow drift, the clock top-right, a dock of large rounded
+  tiles that scale up with a soft shadow, a small tilt and a light sweep when focused, and the all-apps grid on
+  frosted glass below. No music.
+- **Themes:** the look is a pluggable theme (`Theme.java`, `Themes.java`). Glass is the default and Classic is the
+  plain 1.0 look with no pictures. More are coming.
 - **Your apps, your order:** hold OK (or press Menu) on an app to add it to favourites, move it, hide it,
   open its info or uninstall it. New apps show up by themselves.
 - **Cozy look (optional):** your own picture(s), time-of-day switching, looping music with a volume setting,
   your own card art for favourite apps, soft fireflies. All from a folder on the TV.
-- **Screensaver:** your picture with a small clock, or a big clock on a dark background.
+- **Screensaver:** the rotating wallpapers (or your Cozy picture) with a small clock, or a big clock on a dark
+  background with the Classic theme.
 - **Home-button fix for Google TV (optional):** stops the Google TV home flashing up before your launcher.
-- **Light on memory:** made for 2 GB TVs. Pictures are decoded once at screen size into GPU memory; music and
-  animation stop the moment you open an app.
-- **No network, no tracking, no ads.** About 0.2 MB. MIT licensed.
+- **Light on memory:** made for 2 GB TVs. Pictures are decoded at screen size into GPU memory, and only the one
+  on screen is kept (two for the few seconds of a crossfade). Music and animation stop the moment you open an app,
+  and pictures are freed when the system needs memory.
+- **No network, no tracking, no ads.** About 3 MB (mostly the wallpapers). MIT licensed.
 
 ## Cozy Home TV and tv-home
 
@@ -35,7 +42,7 @@ the same "make my TV fast and clean" idea and focuses on the launcher itself:
 
 | | tv-home | Cozy Home TV |
 |---|---|---|
-| Home screen | Dock + grid over rotating nature photos | Favourites row + grid (Default), or your own scene (Cozy) |
+| Home screen | Dock + grid over rotating nature photos | Dock + frosted grid over rotating cozy photos (Glass), plain (Classic), or your own scene (Cozy) |
 | Your own pictures | Replace files in the source and rebuild | Drop them in a folder on the TV, no rebuild |
 | Time-of-day pictures | – | Morning / day / evening / night |
 | Music | – | Your own track, looped, volume setting |
@@ -120,6 +127,8 @@ are in **[docs/cozy-pack.md](docs/cozy-pack.md)**.
 
 Want to try it first? `examples/sample-cozy-pack/` has four free (CC0) cozy living-room pictures, no music.
 
+Your Cozy pack replaces the bundled wallpapers while the Cozy look is on.
+
 Settings in the Cozy look: time of day (follow the clock, or fix one), music on/off, music volume,
 little movements (fireflies), navigation sounds, clock format.
 
@@ -130,7 +139,8 @@ moments. Bring your own clips, see [docs/live-background.md](docs/live-backgroun
 
 Pick it on the TV (Settings > System > Ambient mode / Screensaver > **Cozy Home TV**) or run
 `scripts/set-home.sh <TV-IP> --screensaver`. Cozy look: your current picture with a small clock in a corner.
-Default look: a big clock and the date on a dark background. The clock moves every 75 seconds so nothing burns in.
+Default look: the bundled wallpapers rotating with a small clock in a corner (Glass), or a big clock and the
+date on a dark background (Classic). The clock moves every 75 seconds so nothing burns in.
 
 ## Home-button fix (Google TV)
 
@@ -212,8 +222,20 @@ Code map: `src/io/github/lars21/cozyhometv/` has `HomeActivity` (home screen), `
 Android TV and Google TV 8.0+ (API 26+): Sony, TCL, Hisense, Philips, Panasonic, Xiaomi, Nvidia Shield,
 Chromecast with Google TV and others. Not Samsung (Tizen), LG (webOS) or Fire TV (untested).
 
+## Themes
+
+Settings > **Theme** switches the Default look: **Glass** (default) or **Classic** (no pictures, lightest).
+Settings > **Change picture** sets how often the wallpaper changes (30 s to 15 min, or never), and
+**Little movements** turns the slow drift on or off.
+
+To make a theme, implement `Theme` (the background provider, layout, card style, clock font and sounds) and add
+it to `Themes.ALL`. Focus handling, the app menu, memory handling and the screensaver come for free. Bundled
+pictures go in `assets/wallpapers/` as `NN_day|dusk|night_name.jpg`, at 1920x1080 and under 500 KB each, and
+each one needs a line in [CREDITS.md](CREDITS.md) with a licence that allows redistribution (CC0 or public domain).
+
 ## Credits and licence
 
+Wallpapers: public domain (CC0), photographers and sources in [CREDITS.md](CREDITS.md).
 Code: MIT, see [LICENSE](LICENSE). Caveat font (used in the Cozy look): SIL Open Font License 1.1, see
 [assets/caveat-OFL.txt](assets/caveat-OFL.txt). Sample pictures: CC0. Inspired by
 [tv-home](https://github.com/mihirgupta0900/tv-home).

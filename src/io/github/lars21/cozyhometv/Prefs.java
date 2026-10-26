@@ -37,6 +37,15 @@ final class Prefs {
     boolean motion() { return sp.getBoolean("motion", true); }
     void setMotion(boolean on) { sp.edit().putBoolean("motion", on).apply(); }
 
+    /** Default-mode theme id (see Themes). */
+    String theme() { return sp.getString("theme", Themes.ALL[0].id()); }
+    void setTheme(String id) { sp.edit().putString("theme", id).apply(); }
+
+    static final int[] WALLPAPER_SECONDS = {30, 60, 120, 300, 900, 0};
+    /** How often the bundled wallpaper changes, in seconds. 0 = keep one picture. */
+    int wallpaperSeconds() { return sp.getInt("wallpaperSeconds", 60); }
+    void setWallpaperSeconds(int s) { sp.edit().putInt("wallpaperSeconds", Math.max(0, s)).apply(); }
+
     boolean sounds() { return sp.getBoolean("sounds", true); }
     void setSounds(boolean on) { sp.edit().putBoolean("sounds", on).apply(); }
 

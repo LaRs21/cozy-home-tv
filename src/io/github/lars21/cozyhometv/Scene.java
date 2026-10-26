@@ -1,6 +1,7 @@
 package io.github.lars21.cozyhometv;
 
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageDecoder;
@@ -16,6 +17,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import java.io.File;
+import java.io.InputStream;
 import java.util.Random;
 
 /** Image decoding and the background layer ("backdrop") of Cozy mode. */
@@ -55,6 +57,43 @@ final class Scene {
             Log.e(TAG, "decode " + f, e);
             return null;
         }
+    }
+
+    /** Same as decodeCover, for a picture bundled in the APK (assets/). */
+    static Bitmap decodeCoverAsset(AssetManager am, String path, int targetW, int targetH, boolean hardware) {
+        try {
+            if (Build.VERSION.SDK_INT >= 28) {
+                final int tw = targetW, th = targetH; final boolean hw = hardware;
+                return ImageDecoder.decodeBitmap(ImageDecoder.createSource(am, path), (dec, info, src) -> {
+                    int w = info.getSize().getWidth(), h = info.getSize().getHeight();
+                    float k = Math.max(tw / (float) w, th / (float) h);
+                    if (k < 1f) dec.setTargetSize(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+                    dec.setAllocator(hw ? ImageDecoder.ALLOCATOR_HARDWARE : ImageDecoder.ALLOCATOR_SOFTWARE);
+                });
+            }
+            BitmapFactory.Options o = new BitmapFactory.Options(); o.inJustDecodeBounds = true;
+            try (InputStream in = am.open(path)) { BitmapFactory.decodeStream(in, null, o); }
+            int sample = 1;
+            while (o.outWidth / (sample * 2) >= targetW && o.outHeight / (sample * 2) >= targetH) sample *= 2;
+            o = new BitmapFactory.Options(); o.inSampleSize = sample; o.inScaled = false;
+            Bitmap b; try (InputStream in = am.open(path)) { b = BitmapFactory.decodeStream(in, null, o); }
+            if (b == null) return null;
+            float k = Math.max(targetW / (float) b.getWidth(), targetH / (float) b.getHeight());
+            if (k < 1f) { Bitmap s = Bitmap.createScaledBitmap(b, Math.round(b.getWidth() * k), Math.round(b.getHeight() * k), true); if (s != b) b.recycle(); b = s; }
+            if (hardware) { Bitmap hb = b.copy(Bitmap.Config.HARDWARE, false); if (hb != null) { b.recycle(); b = hb; } }
+            return b;
+        } catch (Throwable e) {
+            Log.e(TAG, "decode asset " + path, e);
+            return null;
+        }
+    }
+
+    /** Small blurred copy of a bundled picture for the frosted panels. */
+    static Bitmap decodeFrostAsset(AssetManager am, String path, int screenW, int screenH) {
+        Bitmap small = decodeCoverAsset(am, path, Math.max(1, screenW / 8), Math.max(1, screenH / 8), false);
+        if (small == null) return null;
+        Bitmap b = Ui.blur(small, 4); small.recycle();
+        return b;
     }
 
     /** Small, blurred copy of the scene for the frosted panels (about 1/8 of the screen, blurred once, ~100 KB). */

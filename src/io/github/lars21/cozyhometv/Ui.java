@@ -41,16 +41,26 @@ final class Ui {
         @Override public int getOpacity() { return PixelFormat.OPAQUE; }
     }
 
-    /** Frosted glass: the pre-blurred scene drawn aligned with the screen, plus a tint. */
+    /**
+     * Frosted glass: the pre-blurred scene drawn aligned with the screen, plus a tint. Drawn as a rounded rect with a
+     * BitmapShader (no clipPath), so it costs about the same as a plain rounded rectangle on the GPU.
+     */
     static final class Frost extends Drawable {
         Bitmap blurred; int screenW, screenH; final int[] origin = new int[2]; View owner; int tint; float radius;
-        final Paint p = new Paint(Paint.FILTER_BITMAP_FLAG), t = new Paint(Paint.ANTI_ALIAS_FLAG); final RectF dst = new RectF(); final Path clip = new Path();
+        final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG), t = new Paint(Paint.ANTI_ALIAS_FLAG);
+        final RectF r = new RectF(); final Matrix m = new Matrix(); BitmapShader shader; Bitmap shaderBmp;
         Frost(View owner, int tint, float radius) { this.owner = owner; this.tint = tint; this.radius = radius; t.setColor(tint); }
         @Override public void draw(Canvas c) {
-            Rect b = getBounds(); clip.reset(); clip.addRoundRect(new RectF(b), radius, radius, Path.Direction.CW);
-            c.save(); c.clipPath(clip);
-            if (blurred != null) { owner.getLocationOnScreen(origin); dst.set(-origin[0], -origin[1], screenW - origin[0], screenH - origin[1]); c.drawBitmap(blurred, null, dst, p); }
-            c.drawRect(b, t); c.restore();
+            r.set(getBounds());
+            Bitmap b = blurred;
+            if (b != null && !b.isRecycled() && screenW > 0) {
+                if (shaderBmp != b) { shader = new BitmapShader(b, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP); shaderBmp = b; p.setShader(shader); }
+                owner.getLocationOnScreen(origin);
+                m.setScale(screenW / (float) b.getWidth(), screenH / (float) b.getHeight()); m.postTranslate(-origin[0], -origin[1]);
+                shader.setLocalMatrix(m);
+                c.drawRoundRect(r, radius, radius, p);
+            } else if (shaderBmp != null) { p.setShader(null); shader = null; shaderBmp = null; }
+            c.drawRoundRect(r, radius, radius, t);
         }
         @Override public void setAlpha(int a) {}
         @Override public void setColorFilter(ColorFilter f) {}

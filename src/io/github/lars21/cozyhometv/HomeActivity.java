@@ -61,7 +61,9 @@ import java.util.concurrent.Executors;
 
 /**
  * Cozy Home TV: the home screen.
- *  - Default look (no setup): dark background, clock, favourites row, all-apps grid. No pictures, no music.
+ *  - Default look (no setup): drawn by the selected Theme (Themes.java). The default "Glass" theme shows bundled
+ *    photos that slowly crossfade, a clock top-right, a dock of rounded tiles over a frosted strip and the all-apps
+ *    grid below. "Classic" is the 1.0 look without pictures. No music in either.
  *  - Cozy look (opt-in in Settings): the user's own time-of-day picture(s), optional music and card art from a
  *    folder on the TV (see CozyPack).
  * Layout works in a 1920x1080 design space scaled to the real screen with d().
@@ -86,6 +88,9 @@ public class HomeActivity extends Activity {
     TextView title, clock, date, favLabel, allLabel, notice; LinearLayout header, favRow, allPanel; GridLayout grid; View spacer;
     TextView inputsBtn; FrameLayout gearBtn; Ui.Frost panelFrost;
     Scene.Backdrop backdrop; Bitmap frostBmp;
+    // theme (Default mode)
+    Theme theme; String themeKey = ""; Scene.Backdrop themeBg; Bitmap themeFrost; Ui.Frost shelfFrost;
+    LinearLayout shelf, clockCol; View headerGap; int keyDx, keyDy;
     final List<ValueAnimator> loops = new ArrayList<>();
 
     // apps
@@ -122,6 +127,7 @@ public class HomeActivity extends Activity {
         try { caveat = Typeface.createFromAsset(getAssets(), "caveat.ttf"); } catch (Exception e) { caveat = Typeface.create("cursive", Typeface.NORMAL); }
         light = Typeface.create("sans-serif-light", Typeface.NORMAL);
         prefs = new Prefs(this); hidden = prefs.hidden(); audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+        theme = Themes.get(prefs.theme()); themeKey = themeKey();
         handleIntent(getIntent());
         buildUi();
         IntentFilter pf = new IntentFilter(); pf.addAction(Intent.ACTION_PACKAGE_ADDED); pf.addAction(Intent.ACTION_PACKAGE_REMOVED); pf.addAction(Intent.ACTION_PACKAGE_CHANGED); pf.addAction(Intent.ACTION_PACKAGE_REPLACED); pf.addDataScheme("package");
@@ -144,7 +150,9 @@ public class HomeActivity extends Activity {
     @Override protected void onResume() {
         super.onResume(); resumed = true;
         hidden = prefs.hidden();
-        applyLook(false);
+        String tk = themeKey();
+        if (!tk.equals(themeKey)) { themeKey = tk; theme = Themes.get(prefs.theme()); releaseThemeBg(); applyLook(true); }
+        else applyLook(false);
         startMotion();
         setMusic();
         restoreFocus();
@@ -156,6 +164,7 @@ public class HomeActivity extends Activity {
         started = false;
         try { unregisterReceiver(timeReceiver); } catch (Exception ignored) {}
         if (backdrop != null) backdrop.stop();
+        if (themeBg != null) themeBg.stop();
         super.onStop();
     }
 
@@ -195,7 +204,7 @@ public class HomeActivity extends Activity {
     }
 
     void buildUi() {
-        root = new FrameLayout(this); root.setBackground(new Ui.Night());
+        root = new FrameLayout(this); root.setBackground(theme.baseDrawable());
         sceneLayer = new FrameLayout(this); root.addView(sceneLayer, new FrameLayout.LayoutParams(-1, -1));
         ambient = new FrameLayout(this); root.addView(ambient, new FrameLayout.LayoutParams(-1, -1));
         bottomShade = new View(this);
@@ -213,31 +222,32 @@ public class HomeActivity extends Activity {
 
         // header: title/clock on the left, Inputs + Settings on the right
         header = new LinearLayout(this); header.setOrientation(LinearLayout.HORIZONTAL); header.setGravity(Gravity.TOP); header.setClipChildren(false);
-        LinearLayout left = new LinearLayout(this); left.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout left = new LinearLayout(this); left.setOrientation(LinearLayout.VERTICAL); clockCol = left;
         title = text("", 46, caveat, TEXT); title.setShadowLayer(df(6), 0, df(2), 0xA0000000); title.setVisibility(View.GONE);
         clock = text("", 92, light, TEXT); clock.setIncludeFontPadding(false); clock.setShadowLayer(df(8), 0, df(2), 0x80000000); clock.setFontFeatureSettings("tnum");
         date = text("", 28, Typeface.SANS_SERIF, DIM); date.setShadowLayer(df(6), 0, df(2), 0x80000000);
         left.addView(title); left.addView(clock); left.addView(date);
-        header.addView(left, new LinearLayout.LayoutParams(0, -2, 1));
+        headerGap = new View(this);
         inputsBtn = pill("Inputs");
         inputsBtn.setOnClickListener(v -> openInputs());
-        LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(-2, d(64)); il.rightMargin = d(16); il.topMargin = d(14);
-        header.addView(inputsBtn, il);
         gearBtn = new FrameLayout(this); gearBtn.setFocusable(true); gearBtn.setClickable(true);
         Ui.Box gb = new Ui.Box(0x33FFFFFF, df(32)).stroke(0x40FFFFFF, Math.max(1, df(1.5f))); gearBtn.setBackground(gb);
         gearBtn.addView(new Ui.Gear(this, TEXT), new FrameLayout.LayoutParams(d(34), d(34), Gravity.CENTER));
         gearBtn.setContentDescription("Settings");
         gearBtn.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         gearBtn.setOnFocusChangeListener((v, f) -> pillFocus(v, f));
-        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(d(64), d(64)); gl.topMargin = d(14);
-        header.addView(gearBtn, gl);
+        arrangeHeader(false);
         column.addView(header, new LinearLayout.LayoutParams(-1, -2));
 
         spacer = new View(this); column.addView(spacer, new LinearLayout.LayoutParams(-1, d(56)));
-        favLabel = sectionLabel("Favourites"); column.addView(favLabel);
+        // shelf = dock row + all apps; the theme may put a frosted panel behind it
+        shelf = new LinearLayout(this); shelf.setOrientation(LinearLayout.VERTICAL); shelf.setClipChildren(false); shelf.setClipToPadding(false);
+        column.addView(shelf, new LinearLayout.LayoutParams(-1, -2));
+        shelfFrost = new Ui.Frost(shelf, theme.layout().panelTint, df(theme.layout().panelRadius));
+        favLabel = sectionLabel("Favourites"); shelf.addView(favLabel);
         favRow = new LinearLayout(this); favRow.setOrientation(LinearLayout.HORIZONTAL); favRow.setClipChildren(false); favRow.setClipToPadding(false);
         favRow.setPadding(0, d(14), 0, d(14));
-        column.addView(favRow, new LinearLayout.LayoutParams(-1, -2));
+        shelf.addView(favRow, new LinearLayout.LayoutParams(-1, -2));
 
         allPanel = new LinearLayout(this); allPanel.setOrientation(LinearLayout.VERTICAL); allPanel.setClipChildren(false); allPanel.setClipToPadding(false);
         panelFrost = new Ui.Frost(allPanel, 0x47000000, df(28));
@@ -245,12 +255,55 @@ public class HomeActivity extends Activity {
         grid = new GridLayout(this); grid.setColumnCount(COLS); grid.setClipChildren(false); grid.setClipToPadding(false); grid.setPadding(0, d(14), 0, d(8));
         allPanel.addView(grid, new LinearLayout.LayoutParams(-1, -2));
         LinearLayout.LayoutParams apl = new LinearLayout.LayoutParams(-1, -2); apl.topMargin = d(20);
-        column.addView(allPanel, apl);
+        shelf.addView(allPanel, apl);
 
         notice = text("", 24, Typeface.SANS_SERIF, TEXT); notice.setPadding(d(30), d(18), d(30), d(18)); notice.setBackground(new Ui.Box(0xE0202530, df(18))); notice.setVisibility(View.GONE);
         FrameLayout.LayoutParams nl = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL); nl.bottomMargin = d(60);
         root.addView(notice, nl);
         setContentView(root);
+    }
+
+    /** Classic: big clock top-left, buttons top-right. Glass: buttons top-left, clock top-right. */
+    void arrangeHeader(boolean clockRight) {
+        header.removeAllViews();
+        LinearLayout.LayoutParams il = new LinearLayout.LayoutParams(-2, d(64)); il.rightMargin = d(16); il.topMargin = d(14);
+        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(d(64), d(64)); gl.topMargin = d(14);
+        int g = clockRight ? Gravity.END : Gravity.START;
+        clockCol.setGravity(g); clock.setGravity(g); date.setGravity(g); title.setGravity(g);
+        if (clockRight) {
+            header.addView(inputsBtn, il); header.addView(gearBtn, gl);
+            header.addView(headerGap, new LinearLayout.LayoutParams(0, 1, 1));
+            header.addView(clockCol, new LinearLayout.LayoutParams(-2, -2));
+        } else {
+            header.addView(clockCol, new LinearLayout.LayoutParams(0, -2, 1));
+            header.addView(inputsBtn, il); header.addView(gearBtn, gl);
+        }
+    }
+
+    /** Layout/card style in use: Cozy mode keeps the classic arrangement over the user's own picture. */
+    Theme.Layout L() { return cozyShown ? Themes.CLASSIC.layout() : theme.layout(); }
+    Theme.CardStyle C() { return cozyShown ? Themes.CLASSIC.cards() : theme.cards(); }
+    String themeKey() { return prefs.theme() + "/" + prefs.wallpaperSeconds() + "/" + prefs.motion(); }
+
+    /** Starts the theme's background (bundled wallpapers) in Default mode. Created lazily, freed in releaseHeavy. */
+    void ensureThemeBg() {
+        if (cozyShown || themeBg != null || !started || isDestroyed()) return;
+        final Scene.Backdrop[] self = new Scene.Backdrop[1];
+        themeBg = theme.background(this, screenW, screenH, prefs, fr -> {
+            if (themeBg == null || themeBg != self[0] || cozyShown) { if (fr != null) fr.recycle(); return; }
+            Bitmap old = themeFrost; themeFrost = fr; shelfFrost.blurred = fr; shelfFrost.screenW = screenW; shelfFrost.screenH = screenH;
+            shelf.invalidate(); if (old != null) old.recycle();
+        });
+        self[0] = themeBg;
+        if (themeBg == null) return;
+        sceneLayer.addView(themeBg.view(), 0, new FrameLayout.LayoutParams(-1, -1));
+        themeBg.start();
+    }
+    void releaseThemeBg() {
+        if (themeBg != null) { sceneLayer.removeView(themeBg.view()); themeBg.release(); themeBg = null; }
+        if (shelfFrost != null) shelfFrost.blurred = null;
+        if (themeFrost != null) { themeFrost.recycle(); themeFrost = null; }
+        if (shelf != null) shelf.invalidate();
     }
 
     TextView sectionLabel(String s) { TextView t = text(s, 26, Typeface.create("sans-serif-medium", Typeface.NORMAL), DIM); t.setShadowLayer(df(6), 0, df(2), 0x80000000); return t; }
@@ -269,9 +322,9 @@ public class HomeActivity extends Activity {
     }
 
     void onScrolled(int y) {
-        float k = Math.min(1f, y / (float) d(cozyShown ? 420 : 200));
-        scrim.setAlpha((cozyShown ? .62f : .0f) * k);
-        if (cozyShown) allPanel.invalidate();
+        float k = Math.min(1f, y / (float) d(cozyShown ? 420 : 300));
+        scrim.setAlpha((cozyShown ? .62f : L().scrimMax) * k);
+        if (cozyShown) allPanel.invalidate(); else if (L().frostPanel) shelf.invalidate();
     }
 
     // ================= look: default vs cozy =================
@@ -301,14 +354,30 @@ public class HomeActivity extends Activity {
     }
 
     void showDefaultChrome() {
-        title.setVisibility(View.GONE); clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(92)); clock.setTypeface(light);
-        bottomShade.setVisibility(View.GONE); scrim.setAlpha(0f);
-        spacer.getLayoutParams().height = d(56); spacer.requestLayout();
+        Theme.Layout l = theme.layout();
+        root.setBackground(theme.baseDrawable());
+        title.setVisibility(View.GONE); clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(l.clockSize)); clock.setTypeface(theme.clockFont(this));
+        date.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(l.dateSize));
+        arrangeHeader(l.clockRight);
+        bottomShade.setVisibility(l.bottomShade ? View.VISIBLE : View.GONE); onScrolled(scroller.getScrollY());
+        spacer.getLayoutParams().height = d(l.dockSpacer); spacer.requestLayout();
+        favLabel.setVisibility(l.dockLabel ? View.VISIBLE : View.GONE); allLabel.setVisibility(l.gridLabel ? View.VISIBLE : View.GONE);
         allPanel.setBackground(null); allPanel.setPadding(0, 0, 0, 0);
+        ((LinearLayout.LayoutParams) allPanel.getLayoutParams()).topMargin = d(l.gridTopGap); allPanel.requestLayout();
+        shelfFrost.tint = l.panelTint; shelfFrost.t.setColor(l.panelTint); shelfFrost.radius = df(l.panelRadius);
+        if (l.frostPanel) { shelf.setBackground(shelfFrost); shelf.setPadding(d(28), d(22), d(28), d(40)); }
+        else { shelf.setBackground(null); shelf.setPadding(0, 0, 0, 0); }
+        ensureThemeBg();
     }
 
     void showCozyChrome() {
+        releaseThemeBg(); // the user's own pack replaces the bundled wallpapers
         cozyShown = true;
+        root.setBackground(new Ui.Night()); arrangeHeader(false);
+        date.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(28));
+        shelf.setBackground(null); shelf.setPadding(0, 0, 0, 0);
+        favLabel.setVisibility(View.VISIBLE); allLabel.setVisibility(View.VISIBLE);
+        ((LinearLayout.LayoutParams) allPanel.getLayoutParams()).topMargin = d(20); allPanel.requestLayout();
         title.setText(pack.title); title.setVisibility(TextUtils.isEmpty(pack.title) ? View.GONE : View.VISIBLE);
         clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, df(64)); clock.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
         bottomShade.setVisibility(View.VISIBLE);
@@ -357,6 +426,7 @@ public class HomeActivity extends Activity {
 
     /** Frees pictures, video and fireflies. The default look needs none of them. */
     void releaseHeavy() {
+        releaseThemeBg();
         if (backdrop != null) { sceneLayer.removeView(backdrop.view()); backdrop.release(); backdrop = null; }
         sceneLayer.removeAllViews();
         panelFrost.blurred = null; if (frostBmp != null) frostBmp.recycle(); frostBmp = null;
@@ -432,31 +502,32 @@ public class HomeActivity extends Activity {
         }
     }
 
-    static final int MAX_FAV = 5; // 5 x 300 + gaps fits the 1920 design width
+    static final int MAX_FAV = 5; // 5 dock tiles + gaps fit the 1920 design width
     /** Favourites that are installed, in order, at most MAX_FAV. */
     List<String> visibleFavorites() { List<String> v = new ArrayList<>(); for (String p : favorites) { if (byPkg.containsKey(p)) v.add(p); if (v.size() >= MAX_FAV) break; } return v; }
 
     static final float TILE_W_FAV = 300, TILE_H_FAV = 169, GAP = 24;
-    float gridTileW() { return (W - 2 * 96 - (COLS - 1) * GAP - (cozyShown ? 56 : 0)) / (float) COLS; }
+    float gridTileW() { Theme.Layout l = L(); int cols = l.gridCols; return (W - 2 * 96 - (cols - 1) * l.gridGap - (cozyShown || l.frostPanel ? 56 : 0)) / (float) cols; }
 
     void rebuildRows() {
         if (favRow == null) return;
         View f = getCurrentFocus(); String keepPkg = null; boolean keepFav = false;
         if (f != null && f.getTag() instanceof String) { keepPkg = (String) f.getTag(); keepFav = f.getParent() == favRow; }
         favRow.removeAllViews(); grid.removeAllViews();
+        Theme.Layout l = L(); int cols = l.gridCols; grid.setColumnCount(cols);
         int shown = 0;
         for (String pkg : visibleFavorites()) {
-            View t = tile(byPkg.get(pkg), TILE_W_FAV, TILE_H_FAV, true);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2); if (shown > 0) lp.leftMargin = d(GAP);
+            View t = tile(byPkg.get(pkg), l.dockW, l.dockH, true);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2); if (shown > 0) lp.leftMargin = d(l.dockGap);
             favRow.addView(t, lp); shown++;
         }
-        favLabel.setVisibility(shown == 0 ? View.GONE : View.VISIBLE); favRow.setVisibility(shown == 0 ? View.GONE : View.VISIBLE);
+        favLabel.setVisibility(shown == 0 || !l.dockLabel ? View.GONE : View.VISIBLE); favRow.setVisibility(shown == 0 ? View.GONE : View.VISIBLE);
         float tw = gridTileW(), th = tw * 9 / 16; int i = 0;
         for (AppRepo.App a : apps) {
             if (hidden.contains(a.pkg)) continue;
             View t = tile(a, tw, th, false);
             GridLayout.LayoutParams gl = new GridLayout.LayoutParams(); gl.width = -2; gl.height = -2;
-            gl.setMargins(i % COLS == 0 ? 0 : d(GAP), i < COLS ? 0 : d(GAP), 0, 0);
+            gl.setMargins(i % cols == 0 ? 0 : d(l.gridGap), i < cols ? 0 : d(l.gridGap), 0, 0);
             grid.addView(t, gl); i++;
         }
         inputsBtn.setVisibility(tvInputPkg == null ? View.GONE : View.VISIBLE);
@@ -465,32 +536,64 @@ public class HomeActivity extends Activity {
         if (favRow.getChildCount() > 0 || grid.getChildCount() > 0) initialFocusDone = true;
     }
 
-    /** One app tile: 16:9 card + name. Focus = lift, ring and brighter name. */
+    /**
+     * One app tile: rounded 16:9 card + name, styled by the theme's CardStyle. Focus = scale up with a soft shadow,
+     * optionally a small tilt towards where you came from that settles, a parallax nudge of the picture and a light sweep.
+     * Everything animates view properties only (no relayout), so D-pad focus stays instant.
+     */
     View tile(final AppRepo.App a, float w, float h, final boolean fav) {
+        final Theme.CardStyle cs = C();
         LinearLayout box = new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setClipChildren(false); box.setClipToPadding(false);
         box.setFocusable(true); box.setClickable(true); box.setTag(a.pkg);
-        final FrameLayout card = new FrameLayout(this); final float r = df(14);
+        final FrameLayout card = new FrameLayout(this); final float r = df(cs.radius);
         card.setOutlineProvider(new ViewOutlineProvider() { @Override public void getOutline(View v, Outline o) { o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), r); } });
-        card.setClipToOutline(true); card.setElevation(df(4));
+        card.setClipToOutline(true); card.setElevation(df(cs.restElevation));
+        if (Build.VERSION.SDK_INT >= 28) { card.setOutlineSpotShadowColor(0xFF000000); card.setOutlineAmbientShadowColor(0xFF000000); }
+        card.setCameraDistance(12000 * getResources().getDisplayMetrics().density);
         card.setBackground(new Ui.Box(0xFF262B36, r));
-        ImageView iv = new ImageView(this); iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        final ImageView iv = new ImageView(this); iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
         Bitmap user = cardArt.get(a.pkg);
         if (user != null) iv.setImageBitmap(user); else { Drawable dr = art.get(a.pkg); if (dr != null) iv.setImageDrawable(dr); }
         card.addView(iv, new FrameLayout.LayoutParams(-1, -1));
-        final View ring = new View(this); ring.setBackground(new Ui.Box(0, r).stroke(0xFFFFFFFF, df(4))); ring.setAlpha(0f);
-        card.addView(ring, new FrameLayout.LayoutParams(-1, -1));
-        card.setAlpha(.86f); // unfocused tiles sit back a little so the focused one stands out
+        final View gloss, sweep;
+        if (cs.shine) {
+            gloss = new View(this); gloss.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0x2EFFFFFF, 0x08FFFFFF, 0x00FFFFFF})); gloss.setAlpha(0f);
+            card.addView(gloss, new FrameLayout.LayoutParams(-1, -1));
+            sweep = new View(this); sweep.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0x00FFFFFF, 0x30FFFFFF, 0x00FFFFFF})); sweep.setAlpha(0f);
+            sweep.setRotation(14f);
+            FrameLayout.LayoutParams sl = new FrameLayout.LayoutParams(d(w * .32f), d(h * 1.6f), Gravity.CENTER_VERTICAL); card.addView(sweep, sl);
+        } else { gloss = null; sweep = null; }
+        final View ring;
+        if (cs.ringWidth > 0) { ring = new View(this); ring.setBackground(new Ui.Box(0, r).stroke(cs.ringColor, df(cs.ringWidth))); ring.setAlpha(0f); card.addView(ring, new FrameLayout.LayoutParams(-1, -1)); }
+        else ring = null;
+        card.setAlpha(cs.unfocusedAlpha); // unfocused tiles sit back a little so the focused one stands out
         box.addView(card, new LinearLayout.LayoutParams(d(w), d(h)));
         final TextView name = text(a.name, 22, Typeface.SANS_SERIF, DIM); name.setSingleLine(); name.setEllipsize(TextUtils.TruncateAt.END); name.setGravity(Gravity.CENTER_HORIZONTAL);
         name.setShadowLayer(df(5), 0, df(2), 0xA0000000);
-        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(d(w), -2); nl.topMargin = d(12); box.addView(name, nl);
+        if (cs.namesOnFocusOnly) name.setAlpha(0f);
+        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(d(w), -2); nl.topMargin = d(cs.namesOnFocusOnly ? 18 : 12); box.addView(name, nl);
         box.setOnFocusChangeListener((v, f) -> {
             boolean moving = a.pkg.equals(movingPkg);
-            float sc = f ? (moving ? 1.12f : 1.08f) : 1f;
-            card.animate().scaleX(sc).scaleY(sc).alpha(f ? 1f : .86f).translationY(f ? -df(4) : 0).setDuration(dur(150)).setInterpolator(new DecelerateInterpolator(1.5f)).start();
-            ring.animate().alpha(f ? 1f : 0f).setDuration(dur(120)).start();
-            card.setElevation(f ? df(16) : df(4)); box.setZ(f ? 1 : 0);
+            float sc = f ? (moving ? cs.focusScale + .04f : cs.focusScale) : 1f;
+            android.animation.TimeInterpolator ease = new DecelerateInterpolator(1.8f);
+            long ms = dur(f ? cs.focusMs : 150);
+            if (f && cs.tiltDeg > 0 && (keyDx != 0 || keyDy != 0)) {
+                card.setRotationY(-keyDx * cs.tiltDeg); card.setRotationX(keyDy * cs.tiltDeg * .7f);
+                iv.setTranslationX(-keyDx * df(10)); iv.setTranslationY(-keyDy * df(6));
+            }
+            card.animate().scaleX(sc).scaleY(sc).alpha(f ? 1f : cs.unfocusedAlpha).translationY(f ? -df(cs.lift) : 0).rotationX(0f).rotationY(0f)
+                .setDuration(ms).setInterpolator(ease).start();
+            iv.animate().translationX(0).translationY(0).scaleX(f && cs.shine ? 1.04f : 1f).scaleY(f && cs.shine ? 1.04f : 1f).setDuration(dur(f ? cs.focusMs + 120 : 150)).setInterpolator(ease).start();
+            if (ring != null) ring.animate().alpha(f ? 1f : 0f).setDuration(dur(120)).start();
+            if (gloss != null) gloss.animate().alpha(f ? 1f : 0f).setDuration(dur(200)).start();
+            if (sweep != null) {
+                sweep.animate().cancel();
+                if (f) { sweep.setTranslationX(-d(w * .45f)); sweep.setAlpha(1f); sweep.animate().translationX(d(w * 1.1f)).setDuration(dur(650)).setStartDelay(dur(60)).setInterpolator(new DecelerateInterpolator()).withEndAction(() -> sweep.setAlpha(0f)).start(); }
+                else sweep.setAlpha(0f);
+            }
+            card.setElevation(f ? df(cs.focusElevation) : df(cs.restElevation)); box.setZ(f ? 1 : 0);
             name.setTextColor(f ? TEXT : DIM);
+            if (cs.namesOnFocusOnly) name.animate().alpha(f ? 1f : 0f).setDuration(dur(f ? 200 : 100)).start();
             if (f) { lastFocusPkg = a.pkg; lastFocusInFav = fav; click(false); }
         });
         box.setOnClickListener(v -> { if (movingPkg != null) { endMove(); return; } launch(a, card); });
@@ -594,6 +697,10 @@ public class HomeActivity extends Activity {
 
     @Override public boolean dispatchKeyEvent(KeyEvent e) {
         int k = e.getKeyCode();
+        if (e.getAction() == KeyEvent.ACTION_DOWN) {
+            keyDx = k == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : k == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 0;
+            keyDy = k == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : k == KeyEvent.KEYCODE_DPAD_UP ? -1 : 0;
+        }
         if (movingPkg != null && e.getAction() == KeyEvent.ACTION_DOWN) {
             if (k == KeyEvent.KEYCODE_DPAD_LEFT) { moveBy(-1); return true; }
             if (k == KeyEvent.KEYCODE_DPAD_RIGHT) { moveBy(1); return true; }
@@ -623,7 +730,8 @@ public class HomeActivity extends Activity {
 
     void click(boolean select) {
         if (!prefs.sounds() || !resumed) return;
-        audio.playSoundEffect(select ? SoundEffectConstants.CLICK : AudioManager.FX_FOCUS_NAVIGATION_DOWN, 0.5f);
+        Theme.Sounds snd = theme.sounds();
+        audio.playSoundEffect(select ? snd.select : snd.focus, snd.volume);
     }
 
     Runnable noticeHide;

@@ -27,14 +27,15 @@ import java.util.Random;
 
 /**
  * Screensaver. Cozy look: the current time-of-day picture (or live background) with a small clock.
- * Default look: a calm dark gradient with a large clock and the date. The clock fades to a new spot every
+ * Default look: the theme's background (Glass: the bundled wallpapers, slowly rotating) with a small clock, or for
+ * a theme without pictures (Classic) a calm dark gradient with a large clock and the date. The clock fades to a new spot every
  * 75 s against burn-in. Any key wakes the TV. Everything is freed in onDetachedFromWindow.
  */
 public class CozyDream extends DreamService {
     static final int TEXT = 0xFFF4F1EA;
     float S = 1; int sw, sh; int d(float v) { return Math.round(v * S); }
     final Handler ui = new Handler(Looper.getMainLooper()); final Random rnd = new Random();
-    FrameLayout root; Scene.Backdrop backdrop; LinearLayout clockBox; TextView clock, date; boolean cozy, running;
+    FrameLayout root; Scene.Backdrop backdrop; LinearLayout clockBox; TextView clock, date; boolean cozy, pictures, running;
     final List<ValueAnimator> loops = new ArrayList<>(); Prefs prefs;
     final BroadcastReceiver tick = new BroadcastReceiver() { @Override public void onReceive(Context c, Intent i) { updateClock(); } };
     final Runnable drift = new Runnable() { @Override public void run() { if (!running) return; moveClock(true); ui.postDelayed(this, 75_000); } };
@@ -59,11 +60,22 @@ public class CozyDream extends DreamService {
             root.addView(backdrop.view(), new FrameLayout.LayoutParams(-1, -1));
             if (pack.fireflies && prefs.motion()) addFireflies(p.equals("morning") || p.equals("day") ? .18f : 1f);
         }
-        Typeface tf; try { tf = cozy ? Typeface.createFromAsset(getAssets(), "caveat.ttf") : Typeface.create("sans-serif-light", Typeface.NORMAL); } catch (Exception e) { tf = Typeface.DEFAULT; }
+        Theme theme = Themes.get(prefs.theme());
+        if (!cozy) {
+            backdrop = theme.background(this, sw, sh, prefs, null);
+            if (backdrop != null) {
+                root.addView(backdrop.view(), new FrameLayout.LayoutParams(-1, -1));
+                View shade = new View(this); // keeps the small clock readable on bright pictures
+                shade.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0x55000000, 0x00000000, 0x00000000, 0x55000000}));
+                root.addView(shade, new FrameLayout.LayoutParams(-1, -1));
+            }
+        }
+        pictures = cozy || backdrop != null;
+        Typeface tf; try { tf = cozy ? Typeface.createFromAsset(getAssets(), "caveat.ttf") : theme.clockFont(this); } catch (Exception e) { tf = Typeface.DEFAULT; }
         clockBox = new LinearLayout(this); clockBox.setOrientation(LinearLayout.VERTICAL); clockBox.setGravity(Gravity.CENTER_HORIZONTAL);
-        clock = new TextView(this); clock.setTypeface(tf); clock.setTextColor(TEXT); clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, d(cozy ? 72 : 150));
+        clock = new TextView(this); clock.setTypeface(tf); clock.setTextColor(TEXT); clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, d(cozy ? 72 : pictures ? 64 : 150));
         clock.setShadowLayer(d(8), 0, d(2), 0xA0000000); clock.setFontFeatureSettings("tnum");
-        date = new TextView(this); date.setTextColor(0xB3F4F1EA); date.setTextSize(TypedValue.COMPLEX_UNIT_PX, d(cozy ? 26 : 34)); date.setShadowLayer(d(6), 0, d(2), 0xA0000000);
+        date = new TextView(this); date.setTextColor(0xB3F4F1EA); date.setTextSize(TypedValue.COMPLEX_UNIT_PX, d(pictures ? 26 : 34)); date.setShadowLayer(d(6), 0, d(2), 0xA0000000);
         clockBox.addView(clock); clockBox.addView(date); clockBox.setAlpha(.85f);
         root.addView(clockBox, new FrameLayout.LayoutParams(-2, -2));
         updateClock(); moveClock(false);
@@ -107,10 +119,10 @@ public class CozyDream extends DreamService {
         clock.setText(DateFormat.format(h24 ? "H:mm" : "h:mm", now)); date.setText(DateFormat.format("EEEE, d MMMM", now));
     }
 
-    /** Cozy: a small clock in one of the corners. Default: a big clock somewhere near the middle. */
+    /** With pictures: a small clock in one of the corners. Without: a big clock somewhere near the middle. */
     void moveClock(boolean fade) {
         final float x, y;
-        if (cozy) { int c = rnd.nextInt(4); x = (c % 2 == 0 ? .06f : .80f) * sw + rnd.nextInt(Math.max(1, d(40))); y = (c < 2 ? .06f : .80f) * sh + rnd.nextInt(Math.max(1, d(30))); }
+        if (pictures) { int c = rnd.nextInt(4); x = (c % 2 == 0 ? .06f : .80f) * sw + rnd.nextInt(Math.max(1, d(40))); y = (c < 2 ? .06f : .80f) * sh + rnd.nextInt(Math.max(1, d(30))); }
         else { x = (.18f + rnd.nextFloat() * .40f) * sw; y = (.22f + rnd.nextFloat() * .36f) * sh; }
         Runnable place = () -> { if (clockBox == null) return; clockBox.setTranslationX(x); clockBox.setTranslationY(y); };
         if (!fade) { place.run(); return; }
