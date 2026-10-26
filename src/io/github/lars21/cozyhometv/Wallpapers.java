@@ -34,9 +34,10 @@ final class Wallpapers implements Scene.Backdrop {
     /** Receives a small blurred copy of the current picture. The receiver owns the bitmap (and recycles it). */
     interface FrostSink { void onFrost(Bitmap small); }
 
-    static String[] list(Context c) {
+    static String[] list(Context c) { return list(c, DIR); }
+    static String[] list(Context c, String dir) {
         List<String> out = new ArrayList<>();
-        try { String[] a = c.getAssets().list(DIR); if (a != null) for (String s : a) { String l = s.toLowerCase(); if (l.endsWith(".jpg") || l.endsWith(".jpeg") || l.endsWith(".webp") || l.endsWith(".png")) out.add(s); } }
+        try { String[] a = c.getAssets().list(dir); if (a != null) for (String s : a) { String l = s.toLowerCase(); if (l.endsWith(".jpg") || l.endsWith(".jpeg") || l.endsWith(".webp") || l.endsWith(".png")) out.add(s); } }
         catch (Exception e) { Log.w(TAG, "list", e); }
         Collections.sort(out);
         return out.toArray(new String[0]);
@@ -49,7 +50,10 @@ final class Wallpapers implements Scene.Backdrop {
         return "night";
     }
 
-    final Context c; final String[] names; final int w, h; final long intervalMs; final boolean drift; final FrostSink sink;
+    /** Told which file is on screen (for a photo credit line). */
+    interface OnShow { void onShow(String file); }
+    OnShow onShow; long fadeMs = FADE_MS;
+    final Context c; final String dir; final String[] names; final int w, h; final long intervalMs; final boolean drift; final FrostSink sink;
     final FrameLayout root; final ImageView[] views = new ImageView[2]; final Bitmap[] bmps = new Bitmap[2];
     int front = -1, index; boolean running, released, loading; float driftDir = 1;
     ValueAnimator kb;
@@ -57,10 +61,12 @@ final class Wallpapers implements Scene.Backdrop {
     final ExecutorService io = Executors.newSingleThreadExecutor();
     final Runnable next = this::advance;
 
-    Wallpapers(Context c, int w, int h, long intervalMs, boolean drift, FrostSink sink) {
+    Wallpapers(Context c, int w, int h, long intervalMs, boolean drift, FrostSink sink) { this(c, DIR, w, h, intervalMs, drift, sink); }
+    Wallpapers(Context c, String dir, int w, int h, long intervalMs, boolean drift, FrostSink sink) {
+        this.dir = dir;
         this.c = c.getApplicationContext() != null ? c.getApplicationContext() : c; this.w = w; this.h = h;
         this.intervalMs = intervalMs; this.drift = drift; this.sink = sink;
-        names = list(c);
+        names = list(c, dir);
         root = new FrameLayout(c);
         for (int i = 0; i < 2; i++) { ImageView iv = new ImageView(c); iv.setScaleType(ImageView.ScaleType.CENTER_CROP); iv.setAlpha(0f); views[i] = iv; root.addView(iv, new FrameLayout.LayoutParams(-1, -1)); }
         String p = "_" + periodNow() + "_";
@@ -92,7 +98,7 @@ final class Wallpapers implements Scene.Backdrop {
     void advance() { if (!running || loading || released) return; index = (index + 1) % names.length; load(index, false); }
 
     void load(final int i, final boolean first) {
-        loading = true; final String path = DIR + "/" + names[i];
+        loading = true; final String path = dir + "/" + names[i]; final String file = names[i];
         try {
             io.execute(() -> {
                 long t = android.os.SystemClock.uptimeMillis();
@@ -102,7 +108,7 @@ final class Wallpapers implements Scene.Backdrop {
                 ui.post(() -> {
                     loading = false;
                     if (released || b == null) { if (b != null) b.recycle(); if (fr != null) fr.recycle(); if (!released) schedule(); return; }
-                    show(b, fr, first);
+                    show(b, fr, first); if (onShow != null) onShow.onShow(file);
                 });
             });
         } catch (Exception e) { loading = false; } // executor shut down
@@ -116,7 +122,7 @@ final class Wallpapers implements Scene.Backdrop {
         iv.setScaleX(1f); iv.setScaleY(1f); iv.setTranslationX(0); iv.setAlpha(0f); iv.bringToFront();
         front = nf;
         startDrift(iv);
-        long fd = HomeActivity.dur(first ? 400 : FADE_MS);
+        long fd = HomeActivity.dur(first ? 400 : fadeMs);
         iv.animate().alpha(1f).setDuration(fd).setInterpolator(new AccelerateDecelerateInterpolator()).withEndAction(() -> {
             if (of >= 0 && of != front) { views[of].setImageDrawable(null); views[of].setAlpha(0f); if (bmps[of] != null) bmps[of].recycle(); bmps[of] = null; }
         }).start();

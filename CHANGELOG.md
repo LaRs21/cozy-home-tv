@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0-pre (not released)
+
+- Clean theme rebuilt (still the default): a full-screen Swiss landscape photo that crossfades to the next one
+  (Settings > Change picture), a thin clock and date top-right, a frosted dock at the bottom with your favourites,
+  All apps and Settings (plus Inputs when the TV has an input app), the focused name gliding under the dock, and an
+  All apps sheet (6 per row, pinned apps marked with a dot) that fades in over the photo. Back closes it.
+- Focus: 1.16x with a white ring, 160 ms. No elevation, no relayout.
+- Photo credit line bottom-left (CC BY-SA photos from Wikimedia Commons, see CREDITS.md).
+- Wallpapers can now come from any asset folder, with their own fade length and a callback for the credit line.
+
 ## 1.2.0 (unreleased)
 
 - Six themes, each a full look with its own background, tiles, font, subtle motion and screensaver:

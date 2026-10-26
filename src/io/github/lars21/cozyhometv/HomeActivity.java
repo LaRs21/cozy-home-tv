@@ -94,6 +94,9 @@ public class HomeActivity extends Activity {
     LinearLayout shelf, clockCol; View headerGap; int keyDx, keyDy;
     FrameLayout dockWrap; Ui.Ambient dockDecor; final Synth synthFocus = new Synth(), synthSelect = new Synth(); CharSequence lastClock;
     final List<ValueAnimator> loops = new ArrayList<>();
+    /** The Clean theme's own home screen (photo, clock, frosted dock, All apps sheet). */
+    CleanHome clean;
+    boolean cleanUi() { return clean != null && theme == Themes.CLEAN && !cozyShown; }
 
     // apps
     List<AppRepo.App> apps = new ArrayList<>(); Map<String, AppRepo.App> byPkg = new HashMap<>();
@@ -201,7 +204,7 @@ public class HomeActivity extends Activity {
     }
 
     /** Pressing Home (or Back) while on the home screen just returns to the top. */
-    void closeOverlays() { movingPkg = null; if (scroller != null) scroller.smoothScrollTo(0, 0); }
+    void closeOverlays() { movingPkg = null; if (scroller != null) scroller.smoothScrollTo(0, 0); if (clean != null && clean.close(false) && cleanUi()) clean.focusFirst(); }
 
     // ================= UI =================
     TextView text(String s, float size, Typeface tf, int color) {
@@ -266,6 +269,7 @@ public class HomeActivity extends Activity {
 
         notice = text("", 24, Typeface.SANS_SERIF, TEXT); notice.setPadding(d(30), d(18), d(30), d(18)); notice.setBackground(new Ui.Box(0xE0202530, df(18))); notice.setVisibility(View.GONE);
         FrameLayout.LayoutParams nl = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL); nl.bottomMargin = d(60);
+        clean = new CleanHome(this); clean.root.setVisibility(View.GONE); root.addView(clean.root, new FrameLayout.LayoutParams(-1, -1));
         root.addView(notice, nl);
         setContentView(root);
     }
@@ -305,6 +309,7 @@ public class HomeActivity extends Activity {
         });
         self[0] = themeBg;
         if (themeBg == null) return;
+        if (themeBg instanceof Wallpapers && theme == Themes.CLEAN) ((Wallpapers) themeBg).onShow = f -> { if (clean != null) clean.onWallpaper(f); };
         sceneLayer.addView(themeBg.view(), 0, new FrameLayout.LayoutParams(-1, -1));
         themeBg.start();
     }
@@ -383,6 +388,16 @@ public class HomeActivity extends Activity {
         shelfFrost.tint = l.panelTint; shelfFrost.t.setColor(l.panelTint); shelfFrost.radius = df(l.panelRadius);
         if (l.frostPanel) { shelf.setBackground(shelfFrost); shelf.setPadding(d(28), d(22), d(28), d(40)); }
         else { shelf.setBackground(null); shelf.setPadding(0, 0, 0, 0); }
+        setCleanUi(theme == Themes.CLEAN);
+    }
+
+    /** Clean has its own screen (CleanHome); every other theme and the Cozy look use the scrolling column. */
+    void setCleanUi(boolean on) {
+        if (clean == null) return;
+        if (!on) clean.close(false);
+        clean.root.setVisibility(on ? View.VISIBLE : View.GONE);
+        scroller.setVisibility(on ? View.GONE : View.VISIBLE);
+        if (on) { bottomShade.setVisibility(View.GONE); scrim.setAlpha(0f); }
     }
 
     /** Puts the theme's animated dock decoration (or nothing) behind the dock row. */
@@ -395,7 +410,7 @@ public class HomeActivity extends Activity {
 
     void showCozyChrome() {
         releaseThemeBg(); // the user's own pack replaces the theme's background
-        cozyShown = true;
+        cozyShown = true; setCleanUi(false);
         if (theme != Themes.CLEAN) {
             applyThemeChrome(); shelfFrost.blurred = frostBmp; shelfFrost.screenW = screenW; shelfFrost.screenH = screenH;
             onScrolled(scroller.getScrollY()); rebuildRows(); return;
@@ -542,6 +557,14 @@ public class HomeActivity extends Activity {
 
     void rebuildRows() {
         if (favRow == null) return;
+        if (cleanUi()) {
+            favRow.removeAllViews(); grid.removeAllViews();
+            clean.rebuild(visibleFavorites(), apps, hidden, art, tvInputPkg != null);
+            if (movingPkg != null) clean.focusPkg(movingPkg, true);
+            else if (getCurrentFocus() == null || !initialFocusDone) restoreFocus();
+            if (!apps.isEmpty()) initialFocusDone = true;
+            return;
+        }
         View f = getCurrentFocus(); String keepPkg = null; boolean keepFav = false;
         if (f != null && f.getTag() instanceof String) { keepPkg = (String) f.getTag(); keepFav = f.getParent() == favRow; }
         favRow.removeAllViews(); grid.removeAllViews();
@@ -667,7 +690,7 @@ public class HomeActivity extends Activity {
                 Drawable b = AppRepo.banner(pm, a);
                 got.put(a.pkg, b != null ? b : new IconCard(AppRepo.icon(pm, a), a.pkg));
             }
-            ui.post(() -> { if (isDestroyed()) return; art.putAll(got); applyArt(favRow); applyArt(grid); });
+            ui.post(() -> { if (isDestroyed()) return; art.putAll(got); applyArt(favRow); applyArt(grid); if (clean != null) clean.applyArt(art); });
         });
     }
     void applyArt(ViewGroup g) {
@@ -740,12 +763,14 @@ public class HomeActivity extends Activity {
     }
 
     void focusPkg(String pkg, boolean inFav) {
+        if (cleanUi()) { if (!clean.focusPkg(pkg, inFav) && inFav) clean.focusPkg(pkg, false); return; }
         ViewGroup g = inFav ? favRow : grid;
         for (int i = 0; i < g.getChildCount(); i++) if (pkg.equals(g.getChildAt(i).getTag())) { g.getChildAt(i).requestFocus(); return; }
         if (inFav) focusPkg(pkg, false);
     }
     void restoreFocus() {
         if (favRow == null) return;
+        if (cleanUi()) { if (lastFocusPkg != null && clean.focusPkg(lastFocusPkg, lastFocusInFav)) return; clean.focusFirst(); return; }
         if (lastFocusPkg != null) { focusPkg(lastFocusPkg, lastFocusInFav); if (getCurrentFocus() != null && getCurrentFocus().getTag() != null) return; }
         if (favRow.getChildCount() > 0) favRow.getChildAt(0).requestFocus(); else if (grid.getChildCount() > 0) grid.getChildAt(0).requestFocus(); else gearBtn.requestFocus();
     }
@@ -765,10 +790,11 @@ public class HomeActivity extends Activity {
         if (k == KeyEvent.KEYCODE_MENU && e.getAction() == KeyEvent.ACTION_DOWN) return true;
         if (k == KeyEvent.KEYCODE_MENU && e.getAction() == KeyEvent.ACTION_UP) {
             View f = getCurrentFocus();
-            if (f != null && f.getTag() instanceof String) { AppRepo.App a = byPkg.get(f.getTag()); if (a != null) appMenu(a, f.getParent() == favRow); }
+            if (f != null && f.getTag() instanceof String) { AppRepo.App a = byPkg.get(f.getTag()); if (a != null) appMenu(a, cleanUi() ? clean.isDockTile(f) : f.getParent() == favRow); }
             else startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
+        if (k == KeyEvent.KEYCODE_BACK && cleanUi()) { if (e.getAction() == KeyEvent.ACTION_UP && !clean.close(true)) { movingPkg = null; clean.focusFirst(); } return true; }
         if (k == KeyEvent.KEYCODE_BACK) { if (e.getAction() == KeyEvent.ACTION_UP) { closeOverlays(); restoreTop(); } return true; } // a launcher never closes on Back
         return super.dispatchKeyEvent(e);
     }
@@ -784,6 +810,7 @@ public class HomeActivity extends Activity {
         clock.setText(txt);
         if (changed) theme.onClockChanged(clock, date, S, resumed && prefs.motion());
         date.setText(DateFormat.format("EEEE, d MMMM", now));
+        if (clean != null) { clean.clock.setText(txt); clean.date.setText(date.getText()); }
     }
 
     void click(boolean select) {

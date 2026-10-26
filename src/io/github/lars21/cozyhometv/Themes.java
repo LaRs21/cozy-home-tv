@@ -39,17 +39,28 @@ final class Themes {
 
     static Drawable vertical(int top, int bottom) { return new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{top, bottom}); }
 
-    /** Clean: the 1.0 look. Dark gradient, big clock, no pictures (fastest, lightest). Default for a fresh install. */
+    /**
+     * Clean (default): the look of a calm, modern TV home. A big landscape photo that changes every 45 s with a slow
+     * crossfade, a thin clock top-right, and one frosted dock at the bottom (favourites, All apps, Settings) with the
+     * focused name under it. All apps opens as a sheet over the photo. The screen itself is built by CleanHome.
+     */
     static final class Clean implements Theme {
+        static final String WALLS = "themes/clean/walls";
         final Layout layout = new Layout(); final CardStyle cards = new CardStyle(); final Sounds sounds = new Sounds();
+        Clean() { layout.textColor = 0xFFFFFFFF; layout.dimColor = 0xDDFFFFFF; }
         public String id() { return "clean"; }
         public String label() { return "Clean"; }
-        public String description() { return "Dark and plain, no pictures. Fastest and lightest."; }
-        public Scene.Backdrop background(Context c, int w, int h, Prefs p, Wallpapers.FrostSink frost) { return null; }
-        public Drawable baseDrawable() { return new Ui.Night(); }
+        public String description() { return "Swiss landscapes, a frosted dock and a thin clock. Simple and fast."; }
+        public Scene.Backdrop background(Context c, int w, int h, Prefs p, Wallpapers.FrostSink frost) {
+            long every = p.wallpaperSeconds() * 1000L; // Settings > Change picture (Alpine used 45 s)
+            Wallpapers wp = new Wallpapers(c, WALLS, w, h, every, false, null); wp.fadeMs = 1600;
+            if (wp.isEmpty()) { wp.release(); return null; }
+            return wp;
+        }
+        public Drawable baseDrawable() { return new android.graphics.drawable.ColorDrawable(0xFF000000); }
         public Layout layout() { return layout; }
         public CardStyle cards() { return cards; }
-        public Typeface clockFont(Context c) { return Typeface.create("sans-serif-light", Typeface.NORMAL); }
+        public Typeface clockFont(Context c) { return Typeface.create("sans-serif-thin", Typeface.NORMAL); }
         public Sounds sounds() { return sounds; }
     }
 

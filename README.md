@@ -54,7 +54,8 @@ Prefer a coding agent? Paste [PROMPT.md](PROMPT.md).
 - **One command:** `./setup.sh` installs, sets Home, picks a theme and can debloat, with a backup record, a
   dry run and a full undo (`./restore.sh`).
 - **Six themes, zero setup:** each is a full look with its own background, tiles, font, subtle motion and
-  screensaver (see [Themes](#themes)). Clean is the default; Glass (Aerial) has eight bundled cozy photos
+  screensaver (see [Themes](#themes)). Clean is the default: eight Swiss landscape photos (CC BY-SA, credited on screen), a thin clock and one
+  frosted dock with All apps and Settings. Glass (Aerial) has eight bundled cozy photos
   (public domain, see [CREDITS.md](CREDITS.md)) that crossfade every minute with a slow drift.
 - **Themes are pluggable** (`Theme.java`, `Themes.java`).
 - **Your apps, your order:** hold OK (or press Menu) on an app to add it to favourites, move it, hide it,
@@ -325,7 +326,7 @@ Settings > **Theme** shows all six with a small preview:
 
 | Theme | Background | Tiles | Font | Motion |
 |---|---|---|---|---|
-| **Clean** (default) | dark, no pictures (lightest) | plain rounded banners with a focus ring | system | none |
+| **Clean** (default) | eight CC BY-SA Swiss landscapes that crossfade | banners in one frosted dock, All apps as a sheet, white focus ring | system thin/light | crossfade only |
 | **Glass (Aerial)** | eight CC0 cozy photos that crossfade | big rounded tiles over frosted glass, tilt and shine | system | slow Ken Burns drift |
 | **Cozy Home** | illustrated living room, changes with the time of day | polaroids pegged to a string of fairy lights | Caveat | twinkling lights, floating dust |
 | **Neon City** | rainy neon skyline | thin cyan outlines that glow magenta | Share Tech Mono | rain, flickering signs, a glitch when the minute changes |

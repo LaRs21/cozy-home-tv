@@ -19,6 +19,31 @@ Attribution isn't required, but we credit the photographers with thanks. The fil
 
 Want your own pictures instead? Use the Cozy look (see the README); your pack replaces these.
 
+## Clean theme photos (`assets/themes/clean/walls/`)
+
+Eight landscape photos of Switzerland from Wikimedia Commons, under **Creative Commons Attribution-ShareAlike**
+(CC BY-SA 3.0 or 4.0, see each row). They are **not** covered by the MIT licence of the code. We downloaded the
+originals, centre-cropped them to 16:9 and resized them to 1920x1080; those crops are adaptations and are shared
+under the same licence as their original. The home screen shows the place, photographer and licence of the photo
+on screen, bottom left.
+
+| File | Place | Photographer | Source | Licence |
+|---|---|---|---|---|
+| `01_matterhorn_riffelsee.jpg` | Riffelsee & Matterhorn, Zermatt | Robertuswiki | [Commons](https://commons.wikimedia.org/wiki/File:Matterhorn_Riffelsee_Spiegelung.jpg) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| `02_lej_da_segl.jpg` | Lej da Segl, Engadin | Hansueli Krapf | [Commons](https://commons.wikimedia.org/wiki/File:2011-08-01_10-31-42_Switzerland_Segl-Maria.jpg) | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+| `03_lauterbrunnen.jpg` | Lauterbrunnen Valley, Bernese Oberland | chensiyuan | [Commons](https://commons.wikimedia.org/wiki/File:1_lauterbrunnen_valley_2012.jpg) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| `04_caumasee.jpg` | Caumasee, Flims | Daniel Kraft | [Commons](https://commons.wikimedia.org/wiki/File:Caumasee_with_funicular_20210614.jpg) | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+| `05_lake_lucerne_pilatus.jpg` | Lake Lucerne from Pilatus | Tobi 87 | [Commons](https://commons.wikimedia.org/wiki/File:Esel-Pilatus_Kulm.jpg) | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+| `06_lavaux.jpg` | Lavaux Vineyards, Lake Geneva | Lorenz Poffet | [Commons](https://commons.wikimedia.org/wiki/File:Lavaux_Switzerland.jpg) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| `07_lake_brienz.jpg` | Lake Brienz, Bernese Oberland | Kabelleger / David Gubler | [Commons](https://commons.wikimedia.org/wiki/File:ZB_Interregio_mit_HGe_101_bei_Niederried.jpg) | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+| `08_alpstein.jpg` | Alpstein, Appenzell | Daniel Kraft | [Commons](https://commons.wikimedia.org/wiki/File:S%C3%A4ntis_view_north_20210812.jpg) | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+
+## Design inspiration
+
+The Clean theme's layout (photo, thin clock top-right, frosted dock with the focused name under it, All apps sheet)
+is inspired by the "Alpine Home" Android TV launcher (`ch.alpine.home`), which uses the same set of Commons photos.
+No code or files from Alpine Home are included; the Clean screen (`CleanHome.java`) and its glyphs are our own.
+
 ## Theme art (`assets/themes/`)
 
 The backgrounds of the Cozy Home (`cozy/morning|day|evening|night.jpg`, the same pictures as
