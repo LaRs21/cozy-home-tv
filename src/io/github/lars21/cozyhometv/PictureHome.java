@@ -11,8 +11,6 @@ import android.graphics.Matrix;
 import android.graphics.Outline;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -58,7 +56,7 @@ final class PictureHome {
     final HomeActivity a; final FrameLayout root, spotLayer; final MotionLayer motion;
     final LinearLayout clockBox, more; final TextView clock, moreText; final FrameLayout gear;
     final FrameLayout sheet; final ScrollView sheetScroll; final LinearLayout grid; final TextView sheetTitle, sheetHint;
-    final List<Spot> spots = new ArrayList<>(); final Map<String, Drawable> icons = new HashMap<>();
+    final List<Spot> spots = new ArrayList<>(); final Map<String, Drawable> icons = new HashMap<>(); final Set<String> banners = new java.util.HashSet<>(); // pkg -> its banner, or its icon if it has none
     PictureTheme theme; Typeface font = Typeface.SERIF; boolean sheetOpen, running; int lastSpot = 0;
     /** -1: More apps (OK opens the app). 0..3: choosing the app for that spot (OK puts it there). */
     int pickIndex = -1; boolean fromChooser;
@@ -170,8 +168,9 @@ final class PictureHome {
         if (!need.isEmpty()) {
             final PackageManager pm = a.getPackageManager();
             a.io.execute(() -> {
-                final Map<String, Drawable> got = new HashMap<>(); for (AppRepo.App ap : need) got.put(ap.pkg, AppRepo.icon(pm, ap));
-                a.ui.post(() -> { icons.putAll(got); for (Spot s : spots) if (s.app != null && s.icon == null) s.setApp(s.app, icons.get(s.app.pkg)); });
+                final Map<String, Drawable> got = new HashMap<>(); final Set<String> gotB = new java.util.HashSet<>();
+                for (AppRepo.App ap : need) { Drawable bn = AppRepo.banner(pm, ap); if (bn != null) { got.put(ap.pkg, bn); gotB.add(ap.pkg); } else got.put(ap.pkg, AppRepo.icon(pm, ap)); }
+                a.ui.post(() -> { icons.putAll(got); banners.addAll(gotB); for (Spot s : spots) if (s.app != null && s.icon == null) s.setApp(s.app, icons.get(s.app.pkg)); });
             });
         }
         buildGrid(apps, hidden, art, pk);
@@ -192,20 +191,43 @@ final class PictureHome {
         if (v instanceof Spot) { Spot s = (Spot) v; return new float[]{px(s.slot.x), px(s.slot.y)}; }
         int[] loc = new int[2]; v.getLocationOnScreen(loc); return new float[]{loc[0] + v.getWidth() / 2f, loc[1] + v.getHeight() / 2f};
     }
-    /** D-pad: the nearest item in the pressed direction, with a penalty for going sideways. */
-    boolean navigate(View from, int key) {
-        int dx = key == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : key == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 0, dy = key == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : key == KeyEvent.KEYCODE_DPAD_UP ? -1 : 0;
-        if ((dx == 0 && dy == 0) || sheetOpen || chooserOpen) return false;
-        List<View> all = new ArrayList<>(spots); all.add(more); all.add(gear);
-        float[] c0 = centre(from); View best = null; float bestScore = Float.MAX_VALUE;
-        for (View v : all) {
-            if (v == from || v.getVisibility() != View.VISIBLE) continue;
-            float[] c = centre(v); float ax = c[0] - c0[0], ay = c[1] - c0[1];
-            float main = dx != 0 ? ax * dx : ay * dy, side = Math.abs(dx != 0 ? ay : ax);
-            if (main <= px(10)) continue;
-            float score = main + 2.2f * side; if (score < bestScore) { bestScore = score; best = v; }
+    /** The spots in rows (top to bottom), each row left to right: reading order, whatever order slots.json lists them in. */
+    List<List<Spot>> rows() {
+        List<Spot> byY = new ArrayList<>(spots); java.util.Collections.sort(byY, (p, q) -> Float.compare(p.slot.y, q.slot.y));
+        List<List<Spot>> rows = new ArrayList<>();
+        for (Spot s : byY) {
+            List<Spot> last = rows.isEmpty() ? null : rows.get(rows.size() - 1);
+            if (last != null && Math.abs(s.slot.y - last.get(0).slot.y) < 220) last.add(s); else { last = new ArrayList<>(); last.add(s); rows.add(last); }
         }
-        if (best != null) best.requestFocus();
+        for (List<Spot> r : rows) java.util.Collections.sort(r, (p, q) -> Float.compare(p.slot.x, q.slot.x));
+        return rows;
+    }
+    static Spot nearestX(List<Spot> row, float x) { Spot b = null; for (Spot s : row) if (b == null || Math.abs(s.slot.x - x) < Math.abs(b.slot.x - x)) b = s; return b; }
+    /**
+     * D-pad, app to app: left/right walk the spots in reading order; up/down move between the rows; down from the
+     * bottom row is More apps; up from the top-right spot is the gear. Focus never falls off the scene.
+     */
+    boolean navigate(View from, int key) {
+        boolean L = key == KeyEvent.KEYCODE_DPAD_LEFT, R = key == KeyEvent.KEYCODE_DPAD_RIGHT, U = key == KeyEvent.KEYCODE_DPAD_UP, D = key == KeyEvent.KEYCODE_DPAD_DOWN;
+        if (!(L || R || U || D) || sheetOpen || chooserOpen) return false;
+        List<List<Spot>> rows = rows(); List<Spot> order = new ArrayList<>(); for (List<Spot> r : rows) order.addAll(r);
+        View to = null;
+        if (order.isEmpty()) to = from == more && U ? gear : from == gear && D ? more : null;
+        else if (from == gear) { if (D || L) to = rows.get(0).get(rows.get(0).size() - 1); }
+        else if (from == more) {
+            List<Spot> bottom = rows.get(rows.size() - 1);
+            if (U) { Spot last = lastSpot < spots.size() ? spots.get(lastSpot) : null; to = last != null && bottom.contains(last) ? last : nearestX(bottom, 960); }
+            else if (L) to = bottom.get(0); else if (R) to = bottom.get(bottom.size() - 1);
+        } else {
+            Spot s = spotOf(from); if (s == null) return false;
+            int i = order.indexOf(s), ri = 0; for (int r = 0; r < rows.size(); r++) if (rows.get(r).contains(s)) ri = r;
+            List<Spot> row = rows.get(ri);
+            if (R) to = i + 1 < order.size() ? order.get(i + 1) : null;
+            else if (L) to = i > 0 ? order.get(i - 1) : null;
+            else if (D) to = ri + 1 < rows.size() ? nearestX(rows.get(ri + 1), s.slot.x) : more;
+            else if (U) to = ri > 0 ? nearestX(rows.get(ri - 1), s.slot.x) : (s == row.get(row.size() - 1) ? gear : null);
+        }
+        if (to != null && to.getVisibility() == View.VISIBLE) to.requestFocus();
         return true; // never let focus fall off the scene
     }
 
@@ -336,8 +358,7 @@ final class PictureHome {
         final FrameLayout t = new FrameLayout(a); t.setFocusable(true); t.setClickable(true);
         final float r = px(22);
         t.setOutlineProvider(new ViewOutlineProvider() { @Override public void getOutline(View v, Outline o) { o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), r); } });
-        t.setClipToOutline(true);
-        GradientDrawable bg = new GradientDrawable(); bg.setCornerRadius(r); bg.setColor(0xFF20262C); t.setBackground(bg);
+        GradientDrawable bg = new GradientDrawable(); bg.setCornerRadius(r); bg.setColor(0xFF20262C); // the app's art is not clipped t.setBackground(bg);
         ImageView iv = new ImageView(a); t.addView(iv, new FrameLayout.LayoutParams(-1, -1)); setArt(iv, art);
         final GradientDrawable ring = new GradientDrawable(); ring.setCornerRadius(r); ring.setStroke(Math.max(2, ip(4)), theme != null ? theme.accent : 0xFFFFFFFF); ring.setColor(0);
         t.setOnFocusChangeListener((v, f) -> {
@@ -349,7 +370,7 @@ final class PictureHome {
     }
     void setArt(ImageView iv, Drawable art) {
         if (art instanceof HomeActivity.IconCard) { iv.setScaleType(ImageView.ScaleType.FIT_CENTER); int p = ip(GRID_H / 5f); iv.setPadding(p, p, p, p); iv.setImageDrawable(((HomeActivity.IconCard) art).icon); }
-        else { iv.setScaleType(ImageView.ScaleType.FIT_XY); iv.setPadding(0, 0, 0, 0); iv.setImageDrawable(art); }
+        else { iv.setScaleType(ImageView.ScaleType.FIT_CENTER); iv.setPadding(0, 0, 0, 0); iv.setImageDrawable(art); } // banner at its own aspect
     }
     void applyArt(Map<String, Drawable> art) {
         for (int r = 0; r < grid.getChildCount(); r++) {
@@ -388,8 +409,8 @@ final class PictureHome {
      */
     static final class Spot extends View {
         final PictureHome h; final PictureTheme.Slot slot; final int index; final float seed;
-        AppRepo.App app; Drawable icon; Bitmap face; float glow, flick = 1f; boolean live;
-        final Paint glowP = new Paint(Paint.ANTI_ALIAS_FLAG), bmpP = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
+        AppRepo.App app; Drawable icon; boolean banner; int artW, artH; Bitmap face; float glow, flick = 1f; boolean live;
+        final Paint glowP = new Paint(Paint.ANTI_ALIAS_FLAG), haloP = new Paint(Paint.ANTI_ALIAS_FLAG), bmpP = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
         final TextPaint labelP = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         final Paint ringP = new Paint(Paint.ANTI_ALIAS_FLAG), pillP = new Paint(Paint.ANTI_ALIAS_FLAG), darkP = new Paint(Paint.ANTI_ALIAS_FLAG); final RectF rect = new RectF();
         final float left, top, vw, vh; ValueAnimator glowAnim;
@@ -414,7 +435,7 @@ final class PictureHome {
 
         void setApp(AppRepo.App a, Drawable ic) {
             if (a == app && ic == icon && face != null) return;
-            app = a; icon = ic; setContentDescription(a != null ? a.name : "Add an app to the " + slot.name);
+            app = a; icon = ic; banner = a != null && h.banners.contains(a.pkg); setContentDescription(a != null ? a.name : "Add an app to the " + slot.name);
             Bitmap old = face; face = render(); if (old != null) old.recycle(); invalidate();
         }
         /** Lit objects (crystals, lanterns, windows, rings) glow a little even when not focused; cloth does not. */
@@ -443,19 +464,24 @@ final class PictureHome {
                 if (glowP.getShader() == null) { int g = slot.glow & 0x00FFFFFF; glowP.setShader(new RadialGradient(cx, cy, R, new int[]{g | 0xB0000000, g | 0x48000000, g}, new float[]{0f, .45f, 1f}, Shader.TileMode.CLAMP)); }
                 glowP.setAlpha(Math.round(255 * Math.min(1f, k))); c.drawCircle(cx, cy, R, glowP);
             }
-            if (face != null) { c.save(); c.rotate(slot.rot, cx, cy); c.drawBitmap(face, cx - face.getWidth() / 2f, cy - face.getHeight() / 2f, bmpP); c.restore(); }
+            if (glow > .01f) { // focus halo: a bright, soft light in the theme's accent behind the object
+                if (haloP.getShader() == null) { int ac = h.theme.accent & 0x00FFFFFF; haloP.setShader(new RadialGradient(cx, cy, R * .9f, new int[]{ac | 0xD0000000, ac | 0x70000000, ac}, new float[]{0f, .5f, 1f}, Shader.TileMode.CLAMP)); }
+                haloP.setAlpha(Math.round(255 * glow)); c.drawCircle(cx, cy, R * .9f, haloP);
+            }
+            if (face != null) c.drawBitmap(face, cx - face.getWidth() / 2f, cy - face.getHeight() / 2f, bmpP); // upright, as the app made it
             // focus: a ring in the theme's accent around the object (it must read on bright paintings too), and the name on a pill
             int acc = h.theme.accent;
             String label = app != null ? app.name : "+ Add app";
             CharSequence l = TextUtils.ellipsize(label, labelP, h.px(vw) - h.px(40), TextUtils.TruncateAt.END);
-            float ly = cy + h.px(slot.labelDy) + h.px(10);
+            float ly = cy + Math.max(h.px(slot.labelDy), artH / 2f + h.px(40)) + h.px(10);
             if (glow > .01f) {
                 float m = h.px(Math.min(slot.w, slot.h)) * (slot.round || slot.style.equals("ring") ? .5f : .46f) + h.px(10);
-                ringP.setStyle(Paint.Style.STROKE); ringP.setStrokeWidth(h.px(5)); ringP.setColor(acc); ringP.setAlpha(Math.round(255 * glow));
-                ringP.setShadowLayer(h.px(14), 0, 0, (acc & 0x00FFFFFF) | 0xE0000000);
+                ringP.setStyle(Paint.Style.STROKE); ringP.setStrokeWidth(h.px(6)); ringP.setColor(acc); ringP.setAlpha(Math.round(255 * glow));
+                ringP.setShadowLayer(h.px(22), 0, 0, (acc & 0x00FFFFFF) | 0xE0000000);
                 // a dark edge under the ring keeps it visible on white sails and bright skies
                 darkP.setStyle(Paint.Style.STROKE); darkP.setStrokeWidth(h.px(9)); darkP.setColor(0x8C000000); darkP.setAlpha(Math.round(0x8C * glow));
-                if (slot.round || slot.style.equals("ring")) { c.drawCircle(cx, cy, m, darkP); c.drawCircle(cx, cy, m, ringP); }
+                if (artW > 0) { float hw = artW / 2f + h.px(10), hh = artH / 2f + h.px(10), rr = Math.min(hw, hh) * .3f; c.drawRoundRect(cx - hw, cy - hh, cx + hw, cy + hh, rr, rr, darkP); c.drawRoundRect(cx - hw, cy - hh, cx + hw, cy + hh, rr, rr, ringP); }
+                else if (slot.round || slot.style.equals("ring")) { c.drawCircle(cx, cy, m, darkP); c.drawCircle(cx, cy, m, ringP); }
                 else { float s0 = Math.min(h.px(slot.w), h.px(slot.h)) * .40f + h.px(12); c.drawRoundRect(cx - s0, cy - s0, cx + s0, cy + s0, s0 * .36f, s0 * .36f, darkP); c.drawRoundRect(cx - s0, cy - s0, cx + s0, cy + s0, s0 * .36f, s0 * .36f, ringP); }
                 float tw = labelP.measureText(l, 0, l.length()), ph = h.px(46);
                 pillP.setColor(0x99000000); pillP.setAlpha(Math.round(0x99 * glow));
@@ -466,57 +492,46 @@ final class PictureHome {
             c.drawText(l, 0, l.length(), cx, ly, labelP);
         }
 
-        /** The spot's picture: the app icon in the object's style, or a dashed "+" when the spot is empty. */
+        /**
+         * The spot's picture. An app is shown with its own artwork, never redrawn: its TV banner at the banner's own
+         * aspect ratio if it has one, else its launcher icon as the system draws it (adaptive icons in the system's
+         * shape). Only things around it are added: a gentle glow of the object's light behind and a soft drop shadow.
+         * An empty spot is a dashed "+".
+         */
         Bitmap render() {
             int fw = Math.max(8, Math.round(h.px(slot.w))), fh = Math.max(8, Math.round(h.px(slot.h)));
-            Bitmap b = Bitmap.createBitmap(fw, fh, Bitmap.Config.ARGB_8888); Canvas c = new Canvas(b);
             float m = Math.min(fw, fh);
             if (app == null) {
+                Bitmap b = Bitmap.createBitmap(fw, fh, Bitmap.Config.ARGB_8888); Canvas c = new Canvas(b);
                 Paint p = new Paint(Paint.ANTI_ALIAS_FLAG); p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(Math.max(2, m * .035f)); p.setColor(0xE0FFFFFF);
                 p.setPathEffect(new DashPathEffect(new float[]{m * .08f, m * .05f}, 0)); p.setShadowLayer(m * .04f, 0, 0, 0xC0000000);
                 float r = m * .32f; c.drawCircle(fw / 2f, fh / 2f, r, p);
                 p.setPathEffect(null); p.setStrokeCap(Paint.Cap.ROUND); p.setStrokeWidth(Math.max(3, m * .06f));
                 c.drawLine(fw / 2f - r * .45f, fh / 2f, fw / 2f + r * .45f, fh / 2f, p); c.drawLine(fw / 2f, fh / 2f - r * .45f, fw / 2f, fh / 2f + r * .45f, p);
-                return b;
+                artW = 0; artH = 0; return b;
             }
-            if (icon == null) return b;
-            String st = slot.style; boolean round = slot.round || st.equals("ring");
-            float k = st.equals("cloth") ? .80f : st.equals("crystal") ? .74f : st.equals("ring") ? .80f : .76f;
-            int is = Math.max(8, Math.round(m * k));
-            // 1. the icon, clipped to a rounded square (or a circle for rings and medallions)
-            Bitmap ib = Bitmap.createBitmap(is, is, Bitmap.Config.ARGB_8888); Canvas ic = new Canvas(ib);
-            Path clip = new Path();
-            if (round) clip.addCircle(is / 2f, is / 2f, is / 2f, Path.Direction.CW); else clip.addRoundRect(new RectF(0, 0, is, is), is * .22f, is * .22f, Path.Direction.CW);
-            ic.clipPath(clip); icon.setBounds(0, 0, is, is); icon.draw(ic);
-            float ox = (fw - is) / 2f, oy = (fh - is) / 2f;
-            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-            Paint sh = new Paint(Paint.ANTI_ALIAS_FLAG); sh.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
-            int g = slot.glow & 0x00FFFFFF;
-            if (st.equals("cloth")) {
-                // printed on cloth: bent along the fabric (a bow and a soft ripple), then the fabric's light and shade
-                int G = 12; float[] v = new float[(G + 1) * (G + 1) * 2]; int n = 0;
-                for (int y = 0; y <= G; y++) for (int x = 0; x <= G; x++) {
-                    float u = x / (float) G, w = y / (float) G;
-                    v[n++] = ox + u * is + slot.curve * is * .08f * (float) Math.sin(Math.PI * w);
-                    v[n++] = oy + w * is + slot.curve * is * .18f * (float) Math.sin(Math.PI * u) + is * .012f * (float) Math.sin(Math.PI * 2 * w + u * 3);
-                }
-                p.setAlpha(232); c.drawBitmapMesh(ib, G, G, v, 0, null, 0, p);
-                sh.setShader(new LinearGradient(ox, 0, ox + is, 0, new int[]{0x58000000, 0x10000000, 0x30FFFFFF, 0x08000000, 0x50000000}, new float[]{0, .25f, .45f, .7f, 1}, Shader.TileMode.CLAMP));
-            } else if (st.equals("crystal")) {
-                // inside a crystal: a little see-through, a sheen from the top-left and the crystal's colour below
-                p.setAlpha(220); c.drawBitmap(ib, ox, oy, p);
-                sh.setShader(new LinearGradient(ox, oy, ox + is, oy + is, new int[]{0x70FFFFFF, 0x00FFFFFF, g | 0x50000000}, new float[]{0, .45f, 1}, Shader.TileMode.CLAMP));
-            } else if (round) {
-                // set in a ring or medallion: a darker rim so it sits inside the metal
-                p.setAlpha(242); c.drawBitmap(ib, ox, oy, p);
-                sh.setShader(new RadialGradient(fw / 2f, fh / 2f, is / 2f, new int[]{0x00000000, 0x00000000, 0x70000000}, new float[]{0, .7f, 1}, Shader.TileMode.CLAMP));
-            } else {
-                // lit in a lantern, window or bell: warm light from above
-                p.setAlpha(240); c.drawBitmap(ib, ox, oy, p);
-                sh.setShader(new LinearGradient(0, oy, 0, oy + is, new int[]{g | 0x38000000, 0x00000000, 0x30000000}, null, Shader.TileMode.CLAMP));
+            if (icon == null) { artW = 0; artH = 0; return Bitmap.createBitmap(fw, fh, Bitmap.Config.ARGB_8888); }
+            int iw = icon.getIntrinsicWidth(), ih = icon.getIntrinsicHeight();
+            if (iw <= 0 || ih <= 0) { iw = banner ? 320 : 1; ih = banner ? 180 : 1; }
+            int tw, th;
+            if (banner) { tw = Math.round(h.px(Math.max(Math.max(slot.w, slot.h) * 1.35f, 150))); th = Math.max(1, Math.round(tw * ih / (float) iw)); }
+            else { int sz = Math.round(Math.max(h.px(Math.min(slot.w, slot.h) * .85f), h.px(76))); if (iw >= ih) { tw = sz; th = Math.max(1, Math.round(sz * ih / (float) iw)); } else { th = sz; tw = Math.max(1, Math.round(sz * iw / (float) ih)); } }
+            artW = tw; artH = th;
+            Bitmap art = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888);
+            icon.setBounds(0, 0, tw, th); icon.draw(new Canvas(art)); // the app's own drawing, unchanged
+            int pad = Math.round(Math.max(tw, th) * .3f);
+            Bitmap b = Bitmap.createBitmap(tw + 2 * pad, th + 2 * pad, Bitmap.Config.ARGB_8888); Canvas c = new Canvas(b);
+            float cx = b.getWidth() / 2f, cy = b.getHeight() / 2f, R = Math.max(tw, th) * .78f;
+            if (lit()) { // a gentle glow of the object's light behind the art
+                int g = slot.glow & 0x00FFFFFF; Paint gp = new Paint(Paint.ANTI_ALIAS_FLAG);
+                gp.setShader(new RadialGradient(cx, cy, R, new int[]{g | 0x70000000, g | 0x28000000, g}, new float[]{0f, .6f, 1f}, Shader.TileMode.CLAMP));
+                c.drawCircle(cx, cy, R, gp);
             }
-            c.drawRect(0, 0, fw, fh, sh);
-            ib.recycle();
+            Paint blur = new Paint(); blur.setMaskFilter(new android.graphics.BlurMaskFilter(Math.max(1, m * .07f), android.graphics.BlurMaskFilter.Blur.NORMAL));
+            int[] off = new int[2]; Bitmap shadow = art.extractAlpha(blur, off);
+            Paint sp = new Paint(Paint.FILTER_BITMAP_FLAG); sp.setColor(0x99000000);
+            c.drawBitmap(shadow, pad + off[0], pad + off[1] + m * .05f, sp); shadow.recycle();
+            c.drawBitmap(art, pad, pad, null); art.recycle();
             return b;
         }
     }

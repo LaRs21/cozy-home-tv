@@ -130,7 +130,7 @@ final class CleanHome {
             iv.setScaleType(ImageView.ScaleType.FIT_CENTER); int p = Math.round(Math.min(dp(wDp), dp(hDp)) / 5f); iv.setPadding(p, p, p, p);
             iv.setImageDrawable(((HomeActivity.IconCard) art).icon);
         } else if (glyph) { iv.setScaleType(ImageView.ScaleType.FIT_CENTER); int p = Math.round(dp(hDp) * .22f); iv.setPadding(p, p, p, p); iv.setImageDrawable(art); }
-        else { iv.setScaleType(ImageView.ScaleType.FIT_XY); iv.setPadding(0, 0, 0, 0); iv.setImageDrawable(art); }
+        else { iv.setScaleType(ImageView.ScaleType.FIT_CENTER); iv.setPadding(0, 0, 0, 0); iv.setImageDrawable(art); }
     }
 
     /** The name under the dock glides to sit centred under the focused item. */

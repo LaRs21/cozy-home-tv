@@ -667,8 +667,8 @@ public class HomeActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 28) { card.setOutlineSpotShadowColor(cs.focusShadowColor); card.setOutlineAmbientShadowColor(0xFF000000); }
         card.setCameraDistance(12000 * getResources().getDisplayMetrics().density);
         card.setBackground(new Ui.Box(cs.cardColor, r));
-        final ImageView iv = new ImageView(this); iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        Bitmap user = cardArt.get(a.pkg);
+        final ImageView iv = new ImageView(this);
+        Bitmap user = cardArt.get(a.pkg); iv.setScaleType(user != null ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER); // the app's own banner is never cropped
         if (user != null) iv.setImageBitmap(user); else { Drawable dr = art.get(a.pkg); if (dr != null) iv.setImageDrawable(dr); }
         if (framed) { FrameLayout.LayoutParams il = new FrameLayout.LayoutParams(d(picW), d(picH), Gravity.TOP | Gravity.START); il.leftMargin = d(cs.insetX); il.topMargin = d(cs.insetTop); card.addView(iv, il); }
         else card.addView(iv, new FrameLayout.LayoutParams(-1, -1));
