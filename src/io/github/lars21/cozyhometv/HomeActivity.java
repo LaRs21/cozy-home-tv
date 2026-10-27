@@ -524,7 +524,7 @@ public class HomeActivity extends Activity {
 
     // ================= music (picture themes and Cozy packs, optional) =================
     static final long MUSIC_FADE_IN_MS = 1500, MUSIC_FADE_OUT_MS = 400;
-    String musicKey; ValueAnimator musicFade;
+    String musicKey, musicPosKey; ValueAnimator musicFade; // musicPos belongs to the track musicPosKey
     /** 0..1 on a perceptual curve. Until the user sets a volume: the theme's or the pack's default. */
     float vol() {
         int v = prefs.volume();
@@ -550,7 +550,7 @@ public class HomeActivity extends Activity {
                 music.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
                 if (themeMusic) pt.setMusicSource(this, music); else music.setDataSource(pack.music.getPath());
                 music.setLooping(true); music.prepare();
-                if (musicPos > 0) music.seekTo(musicPos);
+                if (musicPos > 0 && TextUtils.equals(key, musicPosKey) && musicPos < music.getDuration()) music.seekTo(musicPos); // resume only the same track
             }
             if (audio.requestAudioFocus(focusL, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED && !music.isPlaying()) {
                 final MediaPlayer mp = music; mp.setVolume(0f, 0f); mp.start();
@@ -566,7 +566,7 @@ public class HomeActivity extends Activity {
     void releaseMusic(boolean fade) {
         if (music == null) return;
         if (musicFade != null) { musicFade.cancel(); musicFade = null; }
-        final MediaPlayer mp = music; music = null; musicKey = null;
+        final MediaPlayer mp = music; musicPosKey = musicKey; music = null; musicKey = null;
         try { musicPos = mp.getCurrentPosition(); } catch (Exception ignored) {}
         final Runnable end = () -> { try { mp.stop(); } catch (Exception ignored) {} mp.release(); };
         boolean playing; try { playing = mp.isPlaying(); } catch (Exception e) { playing = false; }
