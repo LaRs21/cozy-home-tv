@@ -15,7 +15,7 @@ DRY_RUN="${DRY_RUN:-0}"
 STATE_ROOT="${COZY_STATE_DIR:-$HOME/.cozy-home-tv}"
 CHANGES_FILE="${CHANGES_FILE:-}"
 # shellcheck disable=SC2034
-THEMES="clean glass cozy neon starship arcade"
+THEMES="clean sky_kingdom moonlit_whale desert_kingdom world_tree"
 
 if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; N=$'\033[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
 say()  { printf '%s\n' "$*"; }

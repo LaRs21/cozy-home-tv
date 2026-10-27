@@ -2,6 +2,19 @@
 
 ## 1.3.0-pre (not released)
 
+- **Picture themes** replace Glass, Cozy Home, Neon City, Starship and Retro Arcade: **Sky Kingdom**, **Moonlit
+  Whale**, **Desert Kingdom** and **World Tree**. Each is one painting with 4 app spots built into the scene; the app
+  draws any app's own icon into a spot in that object's style (cloth, crystal, lantern/window, ring), so any app
+  fits any spot. Fresh installs start with 4 empty "+ Add app" spots.
+- The focused spot gets a ring in the theme's colour and a lit name; **More apps** opens all apps over the theme's
+  tint (hold OK to put an app in a spot or hide it). New **Choose apps** screen (Settings > Choose apps, or hold OK
+  on a spot) to pick the 4 apps.
+- Each picture theme has its own quiet music (Kevin MacLeod, CC BY 4.0) that fades in on the home screen and fades
+  out when an app opens. Settings > Music and Music volume now work for picture themes too.
+- Gentle motion from `slots.json` (mist, water shimmer, twinkles, flickering lights) at about 30 fps, only while home
+  is visible and Little movements is on.
+- Script hooks: `--es spots a,b,c,d` and `--ez chooseApps true`. Theme packs: docs/theme-packs.md.
+- Artwork by Darren Wong (LaRs21), CC BY 4.0. The Glass wallpapers and the old themes' art and fonts are removed.
 - Clean theme rebuilt (still the default): a full-screen Swiss landscape photo that crossfades to the next one
   (Settings > Change picture), a thin clock and date top-right, a frosted dock at the bottom with your favourites,
   All apps and Settings (plus Inputs when the TV has an input app), the focused name gliding under the dock, and an

@@ -60,6 +60,21 @@ final class Prefs {
     Set<String> hidden() { return new LinkedHashSet<>(split(sp.getString("hidden", ""))); }
     void setHidden(Set<String> pkgs) { sp.edit().putString("hidden", TextUtils.join(",", pkgs)).apply(); }
 
+    /**
+     * The 4 app spots of the picture themes (shared by all of them), in slot order; "" = empty ("+ Add app").
+     * A fresh install starts with all 4 empty, so everyone picks their own apps.
+     */
+    static final int SPOTS = 4;
+    List<String> spots() {
+        String[] a = sp.getString("spots", "").split(",", -1); List<String> out = new ArrayList<>();
+        for (int i = 0; i < SPOTS; i++) out.add(i < a.length ? a[i].trim() : "");
+        return out;
+    }
+    void setSpots(List<String> pkgs) {
+        List<String> l = new ArrayList<>(); for (int i = 0; i < SPOTS; i++) l.add(i < pkgs.size() && pkgs.get(i) != null ? pkgs.get(i).trim() : "");
+        sp.edit().putString("spots", TextUtils.join(",", l)).apply();
+    }
+
     SharedPreferences raw() { return sp; }
 
     static List<String> split(String s) {

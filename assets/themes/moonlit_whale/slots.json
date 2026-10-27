@@ -1,0 +1,139 @@
+{
+  "slots": [
+    {
+      "key": "crystal",
+      "name": "crystal",
+      "style": "crystal",
+      "x": 464,
+      "y": 172,
+      "w": 110,
+      "h": 130,
+      "labelDy": 100,
+      "glow": "#FFC9B8FF"
+    },
+    {
+      "key": "sail",
+      "name": "sail",
+      "style": "cloth",
+      "x": 424,
+      "y": 630,
+      "w": 130,
+      "h": 118,
+      "rotate": -1,
+      "curve": 0.5,
+      "labelDy": 66,
+      "glow": "#FFFFF0D0"
+    },
+    {
+      "key": "lighthouse",
+      "name": "lighthouse",
+      "style": "glow",
+      "x": 1692,
+      "y": 240,
+      "w": 66,
+      "h": 62,
+      "labelDy": 60,
+      "glow": "#FF7FF0FF"
+    },
+    {
+      "key": "banner",
+      "name": "banner",
+      "style": "cloth",
+      "x": 1572,
+      "y": 745,
+      "w": 136,
+      "h": 180,
+      "curve": 0.25,
+      "labelDy": 150,
+      "glow": "#FFFFC890"
+    }
+  ],
+  "more": {
+    "x": 960,
+    "y": 1010
+  },
+  "motion": {
+    "twinkles": {
+      "rect": [
+        0,
+        0,
+        1920,
+        380
+      ],
+      "count": 40,
+      "color": "#FFFFFFFF"
+    },
+    "mist": [
+      [
+        480,
+        760,
+        900,
+        260,
+        50,
+        52
+      ],
+      [
+        1100,
+        560,
+        800,
+        200,
+        -40,
+        46
+      ]
+    ],
+    "falls": [
+      [
+        318,
+        281,
+        48,
+        130
+      ],
+      [
+        1809,
+        403,
+        66,
+        178
+      ],
+      [
+        750,
+        628,
+        75,
+        122
+      ]
+    ],
+    "lights": [
+      [
+        70,
+        700,
+        22
+      ],
+      [
+        150,
+        690,
+        18
+      ],
+      [
+        260,
+        705,
+        18
+      ],
+      [
+        1530,
+        330,
+        20
+      ],
+      [
+        1690,
+        560,
+        20
+      ],
+      [
+        1860,
+        600,
+        18
+      ]
+    ],
+    "lightColor": "#FFFFD08A",
+    "mistColor": "#FFDDE6FF"
+  }
+}

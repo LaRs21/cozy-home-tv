@@ -1,0 +1,14 @@
+{
+  "name": "World Tree",
+  "order": 4,
+  "description": "A giant tree, a glowing ring, a bell tower and crystal springs.",
+  "picture": "bg.jpg",
+  "music": "music.mp3",
+  "musicVolume": 35,
+  "musicCredit": "\"Morning\" Kevin MacLeod (incompetech.com), Licensed under Creative Commons: By Attribution 4.0 License, https://creativecommons.org/licenses/by/4.0/",
+  "font": "serif",
+  "textColor": "#FFFFFFFF",
+  "accent": "#FFC8FFE4",
+  "sheetTint": "#E60A1C16",
+  "clockSize": 44
+}

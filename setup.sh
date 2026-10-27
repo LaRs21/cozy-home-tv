@@ -3,14 +3,14 @@
 #
 #   ./setup.sh                      interactive, safe defaults (nothing is turned off unless you ask)
 #   ./setup.sh --dry-run            shows every command it would run on the TV, changes nothing
-#   ./setup.sh --yes --ip 192.168.1.50 --theme neon
-#   ./setup.sh --yes --serial emulator-5554 --theme cozy --debloat safe
+#   ./setup.sh --yes --ip 192.168.1.50 --theme sky_kingdom
+#   ./setup.sh --yes --serial emulator-5554 --theme world_tree --debloat safe
 #
 # Options
 #   --ip <addr>           the TV's IP address (port 5555 is added), or IP:port
 #   --serial <serial>     any device `adb devices` lists (USB, emulator, IP:port)
 #   --pair <ip:port>      Android 11+ wireless debugging: pair first (use with --code <6 digits>)
-#   --theme <id>          clean (default), glass, cozy, neon, starship, arcade
+#   --theme <id>          clean (default), sky_kingdom, moonlit_whale, desert_kingdom, world_tree
 #   --debloat <tier>      none (default), safe, more     --list <file>  use this debloat list
 #   --pack <folder>       push your own pictures and music (a Cozy pack) and switch to the Cozy look
 #   --no-screensaver      leave the screensaver as it is (default: make Cozy Home TV the screensaver)
@@ -195,14 +195,13 @@ step "5/10  Theme"
 if [ -z "$THEME" ]; then
   if [ "$YES" = 1 ]; then THEME=clean; else
     say "  1) Clean          dark and plain, no pictures; fastest and lightest (default)"
-    say "  2) Glass (Aerial) cozy photos that slowly change, rounded tiles over frosted glass"
-    say "  3) Cozy Home      illustrated living room by time of day, polaroids on fairy lights"
-    say "  4) Neon City      rainy neon skyline, glowing tiles, a glitchy clock"
-    say "  5) Starship       cockpit window on drifting stars, HUD panels"
-    say "  6) Retro Arcade   pixel art with scanlines, apps as game cartridges"
+    say "  2) Sky Kingdom    a sky ship and floating islands, your apps on the sail, gate, crystal and tower"
+    say "  3) Moonlit Whale  a sky whale by moonlight, apps in the crystal, sail, lighthouse and banner"
+    say "  4) Desert Kingdom a golden desert city, apps on the windmill, fountain, minaret and tapestry"
+    say "  5) World Tree     a sunlit forest valley, apps in the ring, banner, bell and crystal"
     say "  Pictures: docs/screenshots/theme-*.jpg. You can change it any time in the app: Settings > Theme."
     a="$(prompt "Theme [1]:" 1)"
-    case "$a" in 1|clean) THEME=clean ;; 2|glass) THEME=glass ;; 3|cozy) THEME=cozy ;; 4|neon) THEME=neon ;; 5|starship) THEME=starship ;; 6|arcade) THEME=arcade ;; *) warn "not a choice; using Clean"; THEME=clean ;; esac
+    case "$a" in 1|clean) THEME=clean ;; 2|sky_kingdom) THEME=sky_kingdom ;; 3|moonlit_whale) THEME=moonlit_whale ;; 4|desert_kingdom) THEME=desert_kingdom ;; 5|world_tree) THEME=world_tree ;; *) warn "not a choice; using Clean"; THEME=clean ;; esac
   fi
 fi
 ok "theme: $THEME"

@@ -98,6 +98,10 @@ public class HomeActivity extends Activity {
     CleanHome clean;
     boolean cleanUi() { return clean != null && theme == Themes.CLEAN && !cozyShown; }
 
+    // picture themes: their own home screen (the painting, 4 app spots, More apps)
+    PictureHome pic;
+    boolean pictureUi() { return pic != null && theme instanceof PictureTheme && !cozyShown; }
+
     // apps
     List<AppRepo.App> apps = new ArrayList<>(); Map<String, AppRepo.App> byPkg = new HashMap<>();
     final Map<String, Drawable> art = new HashMap<>();          // pkg -> banner or icon card (cached)
@@ -159,12 +163,14 @@ public class HomeActivity extends Activity {
         if (!tk.equals(themeKey)) { themeKey = tk; theme = Themes.get(prefs.theme()); releaseThemeBg(); cozyShown = false; applyLook(true); }
         else applyLook(false);
         startMotion();
+        if (pictureUi()) pic.setRunning(true);
+        if (wantChooser && pictureUi()) { wantChooser = false; pic.openChooser(); }
         setMusic();
         if (dockDecor != null) dockDecor.setRunning(prefs.motion());
         restoreFocus();
     }
 
-    @Override protected void onPause() { resumed = false; releaseMusic(); stopMotion(); if (dockDecor != null) dockDecor.setRunning(false); super.onPause(); }
+    @Override protected void onPause() { resumed = false; releaseMusic(true); stopMotion(); if (pic != null) pic.setRunning(false); if (dockDecor != null) dockDecor.setRunning(false); super.onPause(); }
 
     @Override protected void onStop() {
         started = false;
@@ -187,7 +193,8 @@ public class HomeActivity extends Activity {
 
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); setIntent(i); handleIntent(i); if (resumed) { applyLook(false); setMusic(); } closeOverlays(); }
 
-    /** Script hooks: am start -n <pkg>/.HomeActivity --es mode cozy|default --es theme <id> --es hide a,b --es unhide a,b --ez reload true */
+    /** Script hooks: am start -n <pkg>/.HomeActivity --es mode cozy|default --es theme <id> --es spots a,b,c,d --ez chooseApps true --es hide a,b --es unhide a,b --ez reload true */
+    boolean wantChooser;
     void handleIntent(Intent i) {
         if (i == null || prefs == null) return;
         String mode = i.getStringExtra("mode");
@@ -200,11 +207,14 @@ public class HomeActivity extends Activity {
             if (unhide != null) h.removeAll(Prefs.split(unhide));
             prefs.setHidden(h); hidden = h; if (column != null) refreshApps();
         }
+        String sp = i.getStringExtra("spots"); // e.g. a private setup script: --es spots com.netflix.ninja,,org.ppsspp.ppsspp
+        if (sp != null) { prefs.setSpots(Arrays.asList(sp.split(",", -1))); if (column != null) rebuildRows(); }
+        if (i.getBooleanExtra("chooseApps", false)) { wantChooser = true; if (resumed && pictureUi()) { wantChooser = false; pic.openChooser(); } }
         if (i.getBooleanExtra("reload", false)) packStamp = -1;
     }
 
     /** Pressing Home (or Back) while on the home screen just returns to the top. */
-    void closeOverlays() { movingPkg = null; if (scroller != null) scroller.smoothScrollTo(0, 0); if (clean != null && clean.close(false) && cleanUi()) clean.focusFirst(); }
+    void closeOverlays() { movingPkg = null; if (scroller != null) scroller.smoothScrollTo(0, 0); if (clean != null && clean.close(false) && cleanUi()) clean.focusFirst(); if (pic != null && pic.close(false) && pictureUi()) pic.focusFirst(); }
 
     // ================= UI =================
     TextView text(String s, float size, Typeface tf, int color) {
@@ -227,6 +237,7 @@ public class HomeActivity extends Activity {
         scroller.addView(column, new FrameLayout.LayoutParams(-1, -2));
         root.addView(scroller, new FrameLayout.LayoutParams(-1, -1));
         scroller.setOnScrollChangeListener((v, x, y, ox, oy) -> onScrolled(y));
+        pic = new PictureHome(this); pic.root.setVisibility(View.GONE); root.addView(pic.root, new FrameLayout.LayoutParams(-1, -1));
 
         // header: title/clock on the left, Inputs + Settings on the right
         header = new LinearLayout(this); header.setOrientation(LinearLayout.HORIZONTAL); header.setGravity(Gravity.TOP); header.setClipChildren(false);
@@ -344,7 +355,7 @@ public class HomeActivity extends Activity {
     // ================= look: default vs cozy =================
     /** (Re)applies the look when the mode, the pack folder or the time of day changed. */
     void applyLook(boolean force) {
-        boolean wantCozy = prefs.cozy();
+        boolean wantCozy = prefs.cozy() && !(theme instanceof PictureTheme); // a picture theme brings its own picture
         if (wantCozy) {
             File dir = CozyPack.findDir(this); long st = CozyPack.stampOf(dir);
             if (force || pack == null || st != packStamp || !cozyShown) { pack = CozyPack.load(this); packStamp = st; scenePeriod = ""; }
@@ -388,7 +399,7 @@ public class HomeActivity extends Activity {
         shelfFrost.tint = l.panelTint; shelfFrost.t.setColor(l.panelTint); shelfFrost.radius = df(l.panelRadius);
         if (l.frostPanel) { shelf.setBackground(shelfFrost); shelf.setPadding(d(28), d(22), d(28), d(40)); }
         else { shelf.setBackground(null); shelf.setPadding(0, 0, 0, 0); }
-        setCleanUi(theme == Themes.CLEAN);
+        setCleanUi(theme == Themes.CLEAN); setPictureUi(theme instanceof PictureTheme);
     }
 
     /** Clean has its own screen (CleanHome); every other theme and the Cozy look use the scrolling column. */
@@ -398,6 +409,15 @@ public class HomeActivity extends Activity {
         clean.root.setVisibility(on ? View.VISIBLE : View.GONE);
         scroller.setVisibility(on ? View.GONE : View.VISIBLE);
         if (on) { bottomShade.setVisibility(View.GONE); scrim.setAlpha(0f); }
+    }
+
+    /** A picture theme shows PictureHome instead of the dock and grid. */
+    void setPictureUi(boolean on) {
+        if (pic == null) return;
+        if (on) { pic.setTheme(((PictureTheme) theme).ensure(this)); scroller.setVisibility(View.GONE); bottomShade.setVisibility(View.GONE); scrim.setAlpha(0f); }
+        else pic.close(false); // setCleanUi() decides whether the scrolling column shows
+        pic.setRunning(on && resumed);
+        pic.root.setVisibility(on ? View.VISIBLE : View.GONE);
     }
 
     /** Puts the theme's animated dock decoration (or nothing) behind the dock row. */
@@ -502,27 +522,59 @@ public class HomeActivity extends Activity {
     void startMotion() { if (!prefs.motion()) { for (ValueAnimator a : loops) a.pause(); return; } for (ValueAnimator a : loops) { if (!a.isStarted()) a.start(); else if (a.isPaused()) a.resume(); } }
     void stopMotion() { for (ValueAnimator a : loops) a.pause(); }
 
-    // ================= music (Cozy, optional) =================
-    float vol() { int v = prefs.volume(); if (v < 0) v = pack != null ? pack.defaultVolume : 40; float k = v / 100f; return k * k; } // perceptual curve
+    // ================= music (picture themes and Cozy packs, optional) =================
+    static final long MUSIC_FADE_IN_MS = 1500, MUSIC_FADE_OUT_MS = 400;
+    String musicKey; ValueAnimator musicFade;
+    /** 0..1 on a perceptual curve. Until the user sets a volume: the theme's or the pack's default. */
+    float vol() {
+        int v = prefs.volume();
+        if (v < 0) v = pictureUi() ? ((PictureTheme) theme).musicVolume : pack != null ? pack.defaultVolume : 40;
+        float k = v / 100f; return k * k;
+    }
+    /**
+     * Plays the picture theme's track, or the Cozy pack's, while home is visible. It is streamed by MediaPlayer
+     * (nothing decoded up front), fades in, and fades out and stops when an app opens or the screensaver starts.
+     */
     void setMusic() {
-        boolean want = resumed && cozyShown && pack != null && pack.music != null && pack.musicEnabled && prefs.music();
-        if (!want) { releaseMusic(); audio.abandonAudioFocus(focusL); return; }
+        PictureTheme pt = pictureUi() ? (PictureTheme) theme : null;
+        boolean themeMusic = pt != null && pt.hasMusic(this);
+        boolean packMusic = cozyShown && pack != null && pack.music != null && pack.musicEnabled;
+        boolean want = resumed && prefs.music() && (themeMusic || packMusic);
+        String key = !want ? null : themeMusic ? pt.musicKey() : "pack:" + pack.music.getPath();
+        if (music != null && !TextUtils.equals(key, musicKey)) { releaseMusic(false); musicPos = 0; }
+        if (!want) { releaseMusic(true); audio.abandonAudioFocus(focusL); return; }
         try {
-            if (music == null) {
-                music = new MediaPlayer();
+            boolean fresh = music == null;
+            if (fresh) {
+                music = new MediaPlayer(); musicKey = key;
                 music.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
-                music.setDataSource(pack.music.getPath()); music.setLooping(true); music.prepare();
+                if (themeMusic) pt.setMusicSource(this, music); else music.setDataSource(pack.music.getPath());
+                music.setLooping(true); music.prepare();
                 if (musicPos > 0) music.seekTo(musicPos);
             }
-            music.setVolume(vol(), vol());
-            if (audio.requestAudioFocus(focusL, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED && !music.isPlaying()) music.start();
-        } catch (Exception e) { Log.e(TAG, "music", e); releaseMusic(); notice("Music could not start (" + pack.music.getName() + ")"); }
+            if (audio.requestAudioFocus(focusL, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED && !music.isPlaying()) {
+                final MediaPlayer mp = music; mp.setVolume(0f, 0f); mp.start();
+                if (musicFade != null) musicFade.cancel();
+                musicFade = ValueAnimator.ofFloat(0f, 1f); musicFade.setDuration(dur(MUSIC_FADE_IN_MS));
+                musicFade.addUpdateListener(an -> { if (music == mp) { float v = vol() * (float) an.getAnimatedValue(); mp.setVolume(v, v); } });
+                musicFade.start();
+            } else if (!fresh && (musicFade == null || !musicFade.isRunning())) music.setVolume(vol(), vol()); // volume changed in Settings
+        } catch (Exception e) { Log.e(TAG, "music", e); releaseMusic(false); notice("Music could not start"); }
     }
-    void releaseMusic() {
+    void releaseMusic() { releaseMusic(false); }
+    /** Stops the music; with fade, it fades out first (the next app's sound starts under it). */
+    void releaseMusic(boolean fade) {
         if (music == null) return;
-        try { musicPos = music.getCurrentPosition(); } catch (Exception ignored) {}
-        try { music.stop(); } catch (Exception ignored) {}
-        music.release(); music = null;
+        if (musicFade != null) { musicFade.cancel(); musicFade = null; }
+        final MediaPlayer mp = music; music = null; musicKey = null;
+        try { musicPos = mp.getCurrentPosition(); } catch (Exception ignored) {}
+        final Runnable end = () -> { try { mp.stop(); } catch (Exception ignored) {} mp.release(); };
+        boolean playing; try { playing = mp.isPlaying(); } catch (Exception e) { playing = false; }
+        if (!fade || !playing) { end.run(); return; }
+        final float v = vol(); ValueAnimator f = ValueAnimator.ofFloat(1f, 0f); f.setDuration(dur(MUSIC_FADE_OUT_MS));
+        f.addUpdateListener(an -> { try { float k = v * (float) an.getAnimatedValue(); mp.setVolume(k, k); } catch (Exception ignored) {} });
+        f.addListener(new android.animation.AnimatorListenerAdapter() { @Override public void onAnimationEnd(android.animation.Animator an) { end.run(); } });
+        f.start();
     }
 
     // ================= apps =================
@@ -557,6 +609,13 @@ public class HomeActivity extends Activity {
 
     void rebuildRows() {
         if (favRow == null) return;
+        if (pictureUi()) {
+            favRow.removeAllViews(); grid.removeAllViews();
+            pic.rebuild(apps, hidden, art);
+            if (getCurrentFocus() == null || !initialFocusDone) restoreFocus();
+            if (!apps.isEmpty()) initialFocusDone = true;
+            return;
+        }
         if (cleanUi()) {
             favRow.removeAllViews(); grid.removeAllViews();
             clean.rebuild(visibleFavorites(), apps, hidden, art, tvInputPkg != null);
@@ -690,7 +749,7 @@ public class HomeActivity extends Activity {
                 Drawable b = AppRepo.banner(pm, a);
                 got.put(a.pkg, b != null ? b : new IconCard(AppRepo.icon(pm, a), a.pkg));
             }
-            ui.post(() -> { if (isDestroyed()) return; art.putAll(got); applyArt(favRow); applyArt(grid); if (clean != null) clean.applyArt(art); });
+            ui.post(() -> { if (isDestroyed()) return; art.putAll(got); applyArt(favRow); applyArt(grid); if (clean != null) clean.applyArt(art); if (pic != null) pic.applyArt(art); });
         });
     }
     void applyArt(ViewGroup g) {
@@ -736,22 +795,27 @@ public class HomeActivity extends Activity {
     void appMenu(final AppRepo.App a, final boolean inFav) {
         final boolean isFav = favorites.contains(a.pkg);
         final List<String> items = new ArrayList<>();
-        if (inFav) { items.add("Move"); items.add("Remove from favourites"); }
+        if (pictureUi()) items.add("Put in a spot");
+        else if (inFav) { items.add("Move"); items.add("Remove from favourites"); }
         else items.add(isFav ? "Remove from favourites" : "Add to favourites");
         items.add("Hide app"); items.add("App info"); items.add("Uninstall");
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(a.name)
             .setItems(items.toArray(new String[0]), (dlg, which) -> {
                 String it = items.get(which);
                 switch (it) {
+                    case "Put in a spot": pic.putInSpot(a); break;
                     case "Move": startMove(a.pkg); break;
                     case "Add to favourites": favorites.remove(a.pkg); favorites.add(a.pkg); if (visibleFavorites().size() >= MAX_FAV && !visibleFavorites().contains(a.pkg)) notice("Only the first 5 favourites are shown. Use Move to reorder."); prefs.setFavorites(favorites); rebuildRows(); break;
                     case "Remove from favourites": favorites.remove(a.pkg); prefs.setFavorites(favorites); rebuildRows(); break;
-                    case "Hide app": hidden.add(a.pkg); favorites.remove(a.pkg); prefs.setHidden(hidden); prefs.setFavorites(favorites); rebuildRows(); notice(a.name + " hidden. Unhide it in Settings > Hidden apps."); break;
-                    case "App info": try { startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.pkg)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception e) { notice("App info is not available"); } break;
+                    case "Hide app": hidden.add(a.pkg); favorites.remove(a.pkg); prefs.setHidden(hidden); prefs.setFavorites(favorites); clearSpot(a.pkg); rebuildRows(); notice(a.name + " hidden. Unhide it in Settings > Hidden apps."); break;
+                    case "App info": appInfo(a.pkg); break;
                     case "Uninstall": try { startActivity(new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + a.pkg)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception e) { notice("Uninstall is not available"); } break;
                 }
             }).show();
     }
+
+    void appInfo(String pkg) { try { startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception e) { notice("App info is not available"); } }
+    void clearSpot(String pkg) { List<String> l = prefs.spots(); if (l.contains(pkg)) { l.set(l.indexOf(pkg), ""); prefs.setSpots(l); } }
 
     void startMove(String pkg) { movingPkg = pkg; rebuildRows(); focusPkg(pkg, true); notice("Use ◀ ▶ to move, OK to finish"); }
     void endMove() { movingPkg = null; prefs.setFavorites(favorites); View f = getCurrentFocus(); if (f != null) { f.clearFocus(); } rebuildRows(); if (lastFocusPkg != null) focusPkg(lastFocusPkg, true); notice.setVisibility(View.GONE); }
@@ -763,6 +827,7 @@ public class HomeActivity extends Activity {
     }
 
     void focusPkg(String pkg, boolean inFav) {
+        if (pictureUi()) { pic.focusPkg(pkg); return; }
         if (cleanUi()) { if (!clean.focusPkg(pkg, inFav) && inFav) clean.focusPkg(pkg, false); return; }
         ViewGroup g = inFav ? favRow : grid;
         for (int i = 0; i < g.getChildCount(); i++) if (pkg.equals(g.getChildAt(i).getTag())) { g.getChildAt(i).requestFocus(); return; }
@@ -770,6 +835,7 @@ public class HomeActivity extends Activity {
     }
     void restoreFocus() {
         if (favRow == null) return;
+        if (pictureUi()) { if (pic.sheetOpen || pic.chooserOpen) { pic.focusFirst(); return; } if (lastFocusPkg != null && pic.focusPkg(lastFocusPkg)) return; pic.focusFirst(); return; }
         if (cleanUi()) { if (lastFocusPkg != null && clean.focusPkg(lastFocusPkg, lastFocusInFav)) return; clean.focusFirst(); return; }
         if (lastFocusPkg != null) { focusPkg(lastFocusPkg, lastFocusInFav); if (getCurrentFocus() != null && getCurrentFocus().getTag() != null) return; }
         if (favRow.getChildCount() > 0) favRow.getChildAt(0).requestFocus(); else if (grid.getChildCount() > 0) grid.getChildAt(0).requestFocus(); else gearBtn.requestFocus();
@@ -790,10 +856,12 @@ public class HomeActivity extends Activity {
         if (k == KeyEvent.KEYCODE_MENU && e.getAction() == KeyEvent.ACTION_DOWN) return true;
         if (k == KeyEvent.KEYCODE_MENU && e.getAction() == KeyEvent.ACTION_UP) {
             View f = getCurrentFocus();
-            if (f != null && f.getTag() instanceof String) { AppRepo.App a = byPkg.get(f.getTag()); if (a != null) appMenu(a, cleanUi() ? clean.isDockTile(f) : f.getParent() == favRow); }
+            if (pictureUi() && pic.spotOf(f) != null) pic.spotMenu(pic.spotOf(f));
+            else if (f != null && f.getTag() instanceof String) { AppRepo.App a = byPkg.get(f.getTag()); if (a != null) appMenu(a, cleanUi() ? clean.isDockTile(f) : f.getParent() == favRow); }
             else startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
+        if (k == KeyEvent.KEYCODE_BACK && pictureUi()) { if (e.getAction() == KeyEvent.ACTION_UP && !pic.close(true)) pic.focusFirst(); return true; }
         if (k == KeyEvent.KEYCODE_BACK && cleanUi()) { if (e.getAction() == KeyEvent.ACTION_UP && !clean.close(true)) { movingPkg = null; clean.focusFirst(); } return true; }
         if (k == KeyEvent.KEYCODE_BACK) { if (e.getAction() == KeyEvent.ACTION_UP) { closeOverlays(); restoreTop(); } return true; } // a launcher never closes on Back
         return super.dispatchKeyEvent(e);
@@ -807,7 +875,7 @@ public class HomeActivity extends Activity {
         Calendar now = Calendar.getInstance();
         CharSequence txt = DateFormat.format(h24 ? "H:mm" : "h:mm", now);
         boolean changed = lastClock != null && !TextUtils.equals(lastClock, txt); lastClock = txt;
-        clock.setText(txt);
+        clock.setText(txt); if (pic != null) pic.clock.setText(txt);
         if (changed) theme.onClockChanged(clock, date, S, resumed && prefs.motion());
         date.setText(DateFormat.format("EEEE, d MMMM", now));
         if (clean != null) { clean.clock.setText(txt); clean.date.setText(date.getText()); }

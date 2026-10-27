@@ -1,0 +1,14 @@
+{
+  "name": "Sky Kingdom",
+  "order": 1,
+  "description": "A sky ship, floating islands and waterfalls above the clouds.",
+  "picture": "bg.jpg",
+  "music": "music.mp3",
+  "musicVolume": 35,
+  "musicCredit": "\"Ascending the Vale\" Kevin MacLeod (incompetech.com), Licensed under Creative Commons: By Attribution 4.0 License, https://creativecommons.org/licenses/by/4.0/",
+  "font": "serif",
+  "textColor": "#FFFFFFFF",
+  "accent": "#FFFFF0C8",
+  "sheetTint": "#E60E1E3A",
+  "clockSize": 44
+}

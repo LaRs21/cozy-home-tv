@@ -79,6 +79,7 @@ public class SettingsActivity extends Activity {
         list.removeAllViews(); rows.clear();
         add("mode", "Look");
         add("theme", "Theme");
+        add("spots", "Choose apps");
         add("wallpaper", "Change picture");
         add("folder", "Cozy pack");
         add("period", "Time of day");
@@ -106,10 +107,11 @@ public class SettingsActivity extends Activity {
                 case "mode": v = prefs.cozy() ? "Cozy" : "Default"; break;
                 case "theme": v = Themes.get(prefs.theme()).label(); break;
                 case "wallpaper": { int sec = prefs.wallpaperSeconds(); v = sec == 0 ? "Never" : sec < 60 ? "Every " + sec + " s" : "Every " + (sec / 60) + " min"; break; }
+                case "spots": { int n = 0; for (String x : prefs.spots()) if (!x.isEmpty()) n++; v = n + " of " + Prefs.SPOTS + " ›"; break; }
                 case "folder": v = pack == null || pack.dir == null ? "Not found" : pack.hasScene() ? pack.scenes.size() + " pictures" + (pack.music != null ? " + music" : "") : "No pictures"; break;
                 case "period": { String p = prefs.period(); v = p.equals("auto") ? "Follow the clock" : cap(p); break; }
                 case "music": v = prefs.music() ? "On" : "Off"; break;
-                case "volume": { int vol = prefs.volume(); if (vol < 0) vol = pack != null ? pack.defaultVolume : 40; v = "◀ " + vol + "% ▶"; break; }
+                case "volume": { int vol = prefs.volume(); if (vol < 0) vol = defaultVolume(pack); v = "◀ " + vol + "% ▶"; break; }
                 case "motion": v = prefs.motion() ? "On" : "Off"; break;
                 case "sounds": v = prefs.sounds() ? "On" : "Off"; break;
                 case "clock": { Boolean c = prefs.clock24(); v = c == null ? "Follow system" : c ? "24-hour" : "12-hour"; break; }
@@ -120,9 +122,12 @@ public class SettingsActivity extends Activity {
                 case "tv": case "about": v = "›"; break;
             }
             r.value.setText(v);
-            boolean cozyOnly = r.key.equals("period") || r.key.equals("music") || r.key.equals("volume");
-            boolean defaultOnly = r.key.equals("wallpaper");
-            r.view.setAlpha((cozyOnly && !prefs.cozy()) || (defaultOnly && prefs.cozy()) ? .55f : 1f);
+            boolean pictureTheme = Themes.get(prefs.theme()) instanceof PictureTheme;
+            boolean cozyOnly = r.key.equals("period");
+            boolean musicRow = r.key.equals("music") || r.key.equals("volume"); // picture themes and Cozy packs
+            boolean pictureOnly = r.key.equals("spots");
+            boolean cleanOnly = r.key.equals("wallpaper");
+            r.view.setAlpha((cozyOnly && !prefs.cozy()) || (musicRow && !prefs.cozy() && !pictureTheme) || (pictureOnly && !pictureTheme) || (cleanOnly && (pictureTheme || prefs.cozy())) ? .55f : 1f);
         }
     }
 
@@ -148,9 +153,13 @@ public class SettingsActivity extends Activity {
             }
             case "theme": themePicker(); return;
             case "wallpaper": { int[] o = Prefs.WALLPAPER_SECONDS; int i = 0; for (int j = 0; j < o.length; j++) if (o[j] == prefs.wallpaperSeconds()) i = j; prefs.setWallpaperSeconds(o[(i + 1) % o.length]); break; }
+            case "spots": {
+                if (!(Themes.get(prefs.theme()) instanceof PictureTheme)) { info("Choose apps", "The 4 app spots belong to the picture themes (Sky Kingdom, Moonlit Whale, Desert Kingdom, World Tree). Pick one of them in Theme first."); return; }
+                startActivity(new Intent(this, HomeActivity.class).putExtra("chooseApps", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP)); finish(); return;
+            }
             case "period": { String[] ps = Prefs.PERIODS; int i = indexOf(ps, prefs.period()); prefs.setPeriod(ps[(i + 1) % ps.length]); break; }
             case "music": prefs.setMusic(!prefs.music()); break;
-            case "volume": { int v = prefs.volume(); if (v < 0) v = CozyPack.load(this).defaultVolume; prefs.setVolume(v >= 100 ? 0 : v + 10); refresh(); return; }
+            case "volume": { int v = prefs.volume(); if (v < 0) v = defaultVolume(null); prefs.setVolume(v >= 100 ? 0 : v + 10); refresh(); return; }
             case "motion": prefs.setMotion(!prefs.motion()); break;
             case "sounds": prefs.setSounds(!prefs.sounds()); break;
             case "clock": { Boolean c = prefs.clock24(); prefs.setClock24(c == null ? Boolean.FALSE : !c ? Boolean.TRUE : null); break; }
@@ -163,16 +172,24 @@ public class SettingsActivity extends Activity {
                 return;
             }
             case "tv": openSettings(Settings.ACTION_SETTINGS, "TV settings are not available"); return;
-            case "about": info("Cozy Home TV " + version(), "A fast, clean home screen for Android TV and Google TV, with an optional cozy look made from your own pictures and music.\n\nOpen source (MIT licence)\ngithub.com/LaRs21/cozy-home-tv\n\nWallpapers: public-domain (CC0) photos, see CREDITS.md.\nCaveat font: SIL Open Font License 1.1."); return;
+            case "about": info("Cozy Home TV " + version(), aboutText()); return;
         }
         refresh();
     }
 
     void step(String key, int dir) {
         if (!key.equals("volume")) return;
-        int v = prefs.volume(); if (v < 0) { CozyPack p = CozyPack.load(this); v = p.defaultVolume; }
+        int v = prefs.volume(); if (v < 0) v = defaultVolume(null);
         int nv = Math.max(0, Math.min(100, v + dir * 5));
         prefs.setVolume(nv); refresh();
+    }
+
+    /** Volume until the user sets one: the picture theme's, else the Cozy pack's. */
+    int defaultVolume(CozyPack pack) {
+        Theme t = Themes.get(prefs.theme());
+        if (t instanceof PictureTheme && !prefs.cozy()) return ((PictureTheme) t).ensure(this).musicVolume;
+        if (pack == null) pack = CozyPack.load(this);
+        return pack != null ? pack.defaultVolume : 40;
     }
 
     /** Theme picker: every theme with a small preview picture. Thumbnails are decoded small and freed on close. */
@@ -246,16 +263,26 @@ public class SettingsActivity extends Activity {
     }
     void info(String title, String msg) { new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(title).setMessage(msg).setPositiveButton("OK", null).show(); }
 
+    String aboutText() {
+        StringBuilder b = new StringBuilder("A fast, clean home screen for Android TV and Google TV, with picture themes and an optional cozy look made from your own pictures and music.\n\nOpen source (MIT licence)\ngithub.com/LaRs21/cozy-home-tv\n\n");
+        b.append("Clean photos: Swiss landscapes from Wikimedia Commons, CC BY-SA; each photographer is credited on screen and in CREDITS.md.\n\n");
+        b.append("Picture themes: artwork by Darren Wong (LaRs21), CC BY 4.0.\n\nMusic:\n");
+        for (Theme t : Themes.ALL) if (t instanceof PictureTheme) { PictureTheme p = ((PictureTheme) t).ensure(this); if (!p.musicCredit.isEmpty()) b.append(p.label).append(": ").append(p.musicCredit).append("\n"); }
+        b.append("Each track re-encoded to 64 kbps mono MP3; nothing else changed.\n\nCaveat font: SIL Open Font License 1.1. Full credits: CREDITS.md.");
+        return b.toString();
+    }
+
     String help(String key) {
         switch (key) {
             case "mode": return "Default: the selected theme, with no setup. Cozy: your own pictures and music from the CozyHome folder (replaces the theme's pictures).";
-            case "theme": return "The whole look: background, tiles, fonts, motion and screensaver. Clean is the fastest. A Cozy pack (Look > Cozy) replaces the theme's background.";
-            case "wallpaper": return "Glass (Aerial) theme and screensaver: how often the photo crossfades to the next one.";
+            case "theme": return "Clean: Swiss landscapes and a frosted dock, simple and fast. Picture themes: a painting with your 4 apps in it, its own music and gentle motion. A Cozy pack (Look > Cozy) replaces Clean's background.";
+            case "wallpaper": return "Clean theme and its screensaver: how often the landscape photo crossfades to the next one.";
+            case "spots": return "Picture themes: pick the 4 apps shown in the painting. Any app fits any spot. You can also hold OK on a spot on the home screen.";
             case "folder": return "Where your pictures and music are read from, and what was found.";
             case "period": return "Cozy look: which picture to show. Follow the clock switches morning, day, evening and night by itself.";
-            case "music": return "Cozy look: plays your music.mp3 on loop while the home screen is showing. Stops as soon as you open an app.";
+            case "music": return "Plays the picture theme's own music (or your Cozy pack's music.mp3) quietly while the home screen is showing. Fades out as soon as you open an app.";
             case "volume": return "Use ◀ ▶ to change.";
-            case "motion": return "Theme motion: photo drift, fairy lights, rain, stars, scanlines; fireflies and the live background in the Cozy look. Always paused while an app is open.";
+            case "motion": return "Picture themes: drifting mist, shimmering waterfalls, twinkles and flickering lights. Cozy look: fireflies and the live background. Always paused while an app is open.";
             case "sounds": return "Small clicks when you move around (uses the TV's own sound setting).";
             case "hidden": return "Apps you hid from the home screen. Choose to show them again.";
             case "homefix": return "Optional: stops the Google TV flash when you press Home.";

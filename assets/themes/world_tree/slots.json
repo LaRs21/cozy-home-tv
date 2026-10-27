@@ -1,0 +1,129 @@
+{
+  "slots": [
+    {
+      "key": "ring",
+      "name": "glowing ring",
+      "style": "ring",
+      "round": true,
+      "x": 367,
+      "y": 186,
+      "w": 124,
+      "h": 112,
+      "labelDy": 104,
+      "glow": "#FFFFD27A"
+    },
+    {
+      "key": "banner",
+      "name": "banner",
+      "style": "cloth",
+      "x": 392,
+      "y": 672,
+      "w": 130,
+      "h": 180,
+      "curve": 0.25,
+      "labelDy": 150,
+      "glow": "#FFFFC890"
+    },
+    {
+      "key": "bell",
+      "name": "bell",
+      "style": "glow",
+      "x": 1620,
+      "y": 250,
+      "w": 84,
+      "h": 86,
+      "labelDy": 88,
+      "glow": "#FF9FFFE0"
+    },
+    {
+      "key": "crystal",
+      "name": "crystal spring",
+      "style": "crystal",
+      "x": 1525,
+      "y": 742,
+      "w": 124,
+      "h": 132,
+      "labelDy": 104,
+      "glow": "#FF7FFFF0"
+    }
+  ],
+  "more": {
+    "x": 960,
+    "y": 1010
+  },
+  "motion": {
+    "twinkles": {
+      "rect": [
+        0,
+        600,
+        760,
+        440
+      ],
+      "count": 18,
+      "color": "#FFFFF4B0"
+    },
+    "mist": [
+      [
+        600,
+        820,
+        700,
+        220,
+        50,
+        50
+      ],
+      [
+        1150,
+        380,
+        600,
+        160,
+        -36,
+        44
+      ]
+    ],
+    "falls": [
+      [
+        1031,
+        574,
+        59,
+        129
+      ],
+      [
+        1101,
+        433,
+        36,
+        118
+      ],
+      [
+        1207,
+        890,
+        70,
+        190
+      ],
+      [
+        1371,
+        937,
+        59,
+        143
+      ]
+    ],
+    "lights": [
+      [
+        141,
+        141,
+        16
+      ],
+      [
+        234,
+        187,
+        14
+      ],
+      [
+        492,
+        176,
+        16
+      ]
+    ],
+    "lightColor": "#FFFFD08A",
+    "mistColor": "#FFFFFFFF"
+  }
+}

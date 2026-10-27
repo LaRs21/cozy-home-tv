@@ -1,11 +1,12 @@
 # Cozy Home TV
 
-**A fast, clean home screen for Android TV and Google TV, with an optional cozy look made from your own
-pictures and music.**
+**A fast, clean home screen for Android TV and Google TV, with painted picture themes that put your apps inside
+the scene, and an optional cozy look made from your own pictures and music.**
 
 Out of the box it's a calm, plain launcher: a clock, a row of your favourite apps and every other app in a grid
-below. No ads, no rows of recommendations. Pick one of six themes in Settings > Theme (Clean, Glass, Cozy Home,
-Neon City, Starship, Retro Arcade), or switch on the **Cozy look** and your home screen becomes a picture you
+below. No ads, no rows of recommendations. Pick a theme in Settings > Theme: Clean, or one of four picture themes
+(Sky Kingdom, Moonlit Whale, Desert Kingdom, World Tree) where your 4 favourite apps sit inside a painting with its
+own music. Or switch on the **Cozy look** and your home screen becomes a picture you
 love (one picture, or a different one for morning, day, evening and night) with your own music playing softly
 while you choose what to watch.
 
@@ -30,7 +31,7 @@ It walks you through everything and asks before it changes anything:
 2. finds the TV, or pairs with it (Android 11+ wireless debugging), with on-screen steps for developer mode,
 3. identifies the brand, model and chip and picks the matching debloat list,
 4. **writes a backup record of the TV's settings, plus a plain-adb undo script, before any change**,
-5. lets you pick one of six themes (Clean is the default),
+5. lets you pick a theme (Clean is the default),
 6. optionally turns off apps you don't use (off by default; none / safe / more),
 7. optionally copies your own pictures and music (a Cozy pack),
 8. installs the signed release APK after checking its SHA-256,
@@ -40,7 +41,7 @@ It walks you through everything and asks before it changes anything:
 
 ```bash
 ./setup.sh --dry-run                       # print every command it would run on the TV; change nothing
-./setup.sh --yes --ip 192.168.1.50 --theme neon            # no questions, defaults for the rest
+./setup.sh --yes --ip 192.168.1.50 --theme sky_kingdom            # no questions, defaults for the rest
 ./setup.sh --ip 192.168.1.50 --debloat safe --pack my-pictures/
 ./restore.sh --ip 192.168.1.50             # undo everything, from the backup record
 ./doctor.sh --ip 192.168.1.50              # read-only health check (after a TV update or reboot)
@@ -53,22 +54,23 @@ Prefer a coding agent? Paste [PROMPT.md](PROMPT.md).
 
 - **One command:** `./setup.sh` installs, sets Home, picks a theme and can debloat, with a backup record, a
   dry run and a full undo (`./restore.sh`).
-- **Six themes, zero setup:** each is a full look with its own background, tiles, font, subtle motion and
-  screensaver (see [Themes](#themes)). Clean is the default: eight Swiss landscape photos (CC BY-SA, credited on screen), a thin clock and one
-  frosted dock with All apps and Settings. Glass (Aerial) has eight bundled cozy photos
-  (public domain, see [CREDITS.md](CREDITS.md)) that crossfade every minute with a slow drift.
-- **Themes are pluggable** (`Theme.java`, `Themes.java`).
+- **Five themes, zero setup** (see [Themes](#themes)). Clean is the default: eight Swiss landscape photos (CC BY-SA,
+  credited on screen), a thin clock and one frosted dock with All apps and Settings.
+- **Four picture themes:** four paintings with 4 app spots each, built into the scene (a sail, a crystal,
+  a lantern, a banner...). Any app fits any spot, drawn in that object's style. Each has its own quiet music and
+  gentle motion (see [Themes](#themes)).
+- **Themes are pluggable** (`Theme.java`, `Themes.java`, picture packs: [docs/theme-packs.md](docs/theme-packs.md)).
 - **Your apps, your order:** hold OK (or press Menu) on an app to add it to favourites, move it, hide it,
   open its info or uninstall it. New apps show up by themselves.
 - **Cozy look (optional):** your own picture(s), time-of-day switching, looping music with a volume setting,
   your own card art for favourite apps, soft fireflies. All from a folder on the TV.
-- **Screensaver:** the theme's background (or your Cozy picture) with a small clock in the theme's font, or a
+- **Screensaver:** the theme's painting (or your Cozy picture) with a small clock in the theme's font, or a
   big clock on a dark background with the Clean theme.
 - **Home-button fix for Google TV (optional):** stops the Google TV home flashing up before your launcher.
 - **Light on memory:** made for 2 GB TVs. Pictures are decoded at screen size into GPU memory, and only the one
   on screen is kept (two for the few seconds of a crossfade). Music and animation stop the moment you open an app,
   and pictures are freed when the system needs memory.
-- **No network, no tracking, no ads.** About 5 MB (mostly the pictures). MIT licensed.
+- **No network, no tracking, no ads.** About 9 MB (mostly the paintings and music). MIT licensed.
 
 ## How it compares with other approaches
 
@@ -203,9 +205,8 @@ moments. Bring your own clips, see [docs/live-background.md](docs/live-backgroun
 
 Pick it on the TV (Settings > System > Ambient mode / Screensaver > **Cozy Home TV**) or run
 `scripts/set-home.sh <TV-IP> --screensaver`. Cozy look: your current picture with a small clock in a corner.
-Default look: the theme's background (the rotating photos in Glass, the room, city, starfield or arcade in
-the others, with their motion) and a small clock in the theme's font, or a big clock and the date on a dark
-background (Clean). The clock moves every 75 seconds so nothing burns in.
+Default look: the picture theme's painting and a small clock in the theme's font, or a big clock and the date
+on a dark background (Clean). The clock moves every 75 seconds so nothing burns in.
 
 ## Home-button fix (Google TV)
 
@@ -316,37 +317,47 @@ Chromecast with Google TV and others. Not Samsung (Tizen), LG (webOS) or Fire TV
 
 ## Themes
 
-| | | |
-|---|---|---|
-| ![Clean](docs/screenshots/theme-clean.jpg) **Clean** (default) | ![Glass](docs/screenshots/theme-glass.jpg) **Glass (Aerial)** | ![Cozy Home](docs/screenshots/theme-cozy.jpg) **Cozy Home** |
-| ![Neon City](docs/screenshots/theme-neon.jpg) **Neon City** | ![Starship](docs/screenshots/theme-starship.jpg) **Starship** | ![Retro Arcade](docs/screenshots/theme-arcade.jpg) **Retro Arcade** |
+| | |
+|---|---|
+| ![Clean](docs/screenshots/theme-clean.jpg) **Clean** (default) | |
+| ![Sky Kingdom](docs/screenshots/theme-sky_kingdom.jpg) **Sky Kingdom** | ![Moonlit Whale](docs/screenshots/theme-moonlit_whale.jpg) **Moonlit Whale** |
+| ![Desert Kingdom](docs/screenshots/theme-desert_kingdom.jpg) **Desert Kingdom** | ![World Tree](docs/screenshots/theme-world_tree.jpg) **World Tree** |
 
-Pick one in `./setup.sh` (`--theme clean|glass|cozy|neon|starship|arcade`) or on the TV:
-Settings > **Theme** shows all six with a small preview:
+Pick one in `./setup.sh` (`--theme clean|sky_kingdom|moonlit_whale|desert_kingdom|world_tree`) or on the TV:
+Settings > **Theme** shows them all with a small preview.
 
-| Theme | Background | Tiles | Font | Motion |
-|---|---|---|---|---|
-| **Clean** (default) | eight CC BY-SA Swiss landscapes that crossfade | banners in one frosted dock, All apps as a sheet, white focus ring | system thin/light | crossfade only |
-| **Glass (Aerial)** | eight CC0 cozy photos that crossfade | big rounded tiles over frosted glass, tilt and shine | system | slow Ken Burns drift |
-| **Cozy Home** | illustrated living room, changes with the time of day | polaroids pegged to a string of fairy lights | Caveat | twinkling lights, floating dust |
-| **Neon City** | rainy neon skyline | thin cyan outlines that glow magenta | Share Tech Mono | rain, flickering signs, a glitch when the minute changes |
-| **Starship** | cockpit window on space | HUD panels with corner brackets | Orbitron | slowly drifting stars |
-| **Retro Arcade** | pixel-art arcade | game cartridges with labels | Press Start 2P | scanlines, twinkling pixel stars |
+| Theme | Apps | Music | Motion |
+|---|---|---|---|
+| **Clean** (default) | eight CC BY-SA Swiss landscapes that crossfade; favourites in one frosted dock, All apps as a sheet | none | crossfade only |
+| **Sky Kingdom** | ship's sail, stone gate, crystal, tower window | "Ascending the Vale" | drifting mist, flowing water, twinkles, flickering lights |
+| **Moonlit Whale** | crystal, sail, lighthouse, banner | "Midnight Tale" | drifting mist, flowing water, twinkles, flickering lights |
+| **Desert Kingdom** | windmill, fountain, minaret, tapestry | "Suonatore di Liuto" | drifting mist, flowing water, twinkles, flickering lights |
+| **World Tree** | ring, banner, bell, crystal | "Morning" | drifting mist, flowing water, twinkles, flickering lights |
 
-The themed ones have short navigation sounds made in code (no audio files); they follow the system's
-sound-effects setting and Settings > Navigation sounds. **Little movements** turns all the motion off, and
-the motion always stops while an app is open. Settings > **Change picture** sets how often the Glass photo
-changes. A Cozy pack (Look > Cozy) replaces the background in any theme and keeps that theme's tiles and font.
+**Picture themes.** The painting has empty objects; the app draws each chosen app's own icon into them in the
+object's style (printed on cloth, glowing in a crystal, lit in a lantern or window, set in a ring), so any app fits
+any spot. A fresh install starts with 4 empty spots showing **+ Add app**: press OK on one to pick its app, hold OK
+on a spot to change, move or clear it, or use Settings > **Choose apps**. The focused spot gets a ring in the
+theme's colour and its name lights up. **More apps** at the bottom opens every app over a tint of the theme; hold
+OK there to put an app in a spot or hide it. The spots are shared by all four picture themes.
 
-To make a theme, implement `Theme` (the background provider, layout, card style, clock font and sounds) and add
-it to `Themes.ALL`. Focus handling, the app menu, memory handling and the screensaver come for free. Bundled
-pictures go in `assets/wallpapers/` as `NN_day|dusk|night_name.jpg`, at 1920x1080 and under 500 KB each, and
-each one needs a line in [CREDITS.md](CREDITS.md) with a licence that allows redistribution (CC0 or public domain).
+Music plays quietly while the home screen is showing, fades in, and fades out the moment you open an app or the
+screensaver starts. Settings > **Music** turns it off; **Music volume** sets the level. **Little movements** turns
+all the motion off, and the motion always stops while an app is open.
+
+From a computer: `am start -n io.github.lars21.cozyhometv/.HomeActivity --es spots <pkg1>,<pkg2>,<pkg3>,<pkg4>`
+(leave a position empty for an empty spot) or `--ez chooseApps true`.
+
+To add a picture theme, see [docs/theme-packs.md](docs/theme-packs.md): a `theme.json`, a `slots.json` with the 4
+spots and motion layers, a 1920x1080 `bg.jpg` with the objects painted empty, a `thumb.jpg` and an optional
+`music.mp3`, then a line in `Themes.ALL`. To make a completely different theme, implement `Theme`.
+
+Settings > **Change picture** sets how often the Clean photo changes. A Cozy pack (Look > Cozy) replaces Clean's
+photos with your own pictures.
 
 ## Credits and licence
 
-Wallpapers: public domain (CC0), photographers and sources in [CREDITS.md](CREDITS.md). Theme art: original
-AI-generated pictures released as CC0. Code: MIT, see [LICENSE](LICENSE). Fonts (Caveat, Share Tech Mono,
-Orbitron, Press Start 2P): SIL Open Font License 1.1, licence files in [assets/](assets/caveat-OFL.txt) and
-[assets/fonts/](assets/fonts/). Sample pictures: CC0. Inspired by
-[tv-home](https://github.com/mihirgupta0900/tv-home).
+Picture-theme artwork: Darren Wong (LaRs21), CC BY 4.0. Music: Kevin MacLeod (incompetech.com), CC BY 4.0; the
+exact lines are in [CREDITS.md](CREDITS.md) and in the app under Settings > About. Code: MIT, see [LICENSE](LICENSE).
+Caveat font: SIL Open Font License 1.1 ([assets/caveat-OFL.txt](assets/caveat-OFL.txt)). Sample pictures: CC0.
+Inspired by [tv-home](https://github.com/mihirgupta0900/tv-home).

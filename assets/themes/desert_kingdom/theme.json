@@ -1,0 +1,14 @@
+{
+  "name": "Desert Kingdom",
+  "order": 3,
+  "description": "A windmill palace, an oasis fountain and moon-shaped towers.",
+  "picture": "bg.jpg",
+  "music": "music.mp3",
+  "musicVolume": 35,
+  "musicCredit": "\"Suonatore di Liuto\" Kevin MacLeod (incompetech.com), Licensed under Creative Commons: By Attribution 4.0 License, https://creativecommons.org/licenses/by/4.0/",
+  "font": "serif",
+  "textColor": "#FFFFFFFF",
+  "accent": "#FFFFD58A",
+  "sheetTint": "#E6281A0C",
+  "clockSize": 44
+}

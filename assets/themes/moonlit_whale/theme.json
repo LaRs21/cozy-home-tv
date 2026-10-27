@@ -1,0 +1,14 @@
+{
+  "name": "Moonlit Whale",
+  "order": 2,
+  "description": "A starry whale over a city of lights and a lighthouse at night.",
+  "picture": "bg.jpg",
+  "music": "music.mp3",
+  "musicVolume": 35,
+  "musicCredit": "\"Midnight Tale\" Kevin MacLeod (incompetech.com), Licensed under Creative Commons: By Attribution 4.0 License, https://creativecommons.org/licenses/by/4.0/",
+  "font": "serif",
+  "textColor": "#FFFFFFFF",
+  "accent": "#FFC8DCFF",
+  "sheetTint": "#E6081026",
+  "clockSize": 44
+}

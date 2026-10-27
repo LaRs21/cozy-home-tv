@@ -1,0 +1,106 @@
+{
+  "slots": [
+    {
+      "key": "windmill",
+      "name": "windmill",
+      "style": "ring",
+      "round": true,
+      "x": 398,
+      "y": 200,
+      "w": 128,
+      "h": 128,
+      "labelDy": 112,
+      "glow": "#FFFFD27A"
+    },
+    {
+      "key": "fountain",
+      "name": "fountain",
+      "style": "crystal",
+      "x": 535,
+      "y": 720,
+      "w": 130,
+      "h": 150,
+      "labelDy": 112,
+      "glow": "#FF8FF0FF"
+    },
+    {
+      "key": "minaret",
+      "name": "minaret",
+      "style": "glow",
+      "x": 1635,
+      "y": 232,
+      "w": 86,
+      "h": 116,
+      "labelDy": 86,
+      "glow": "#FF8FE8FF"
+    },
+    {
+      "key": "tapestry",
+      "name": "tapestry",
+      "style": "cloth",
+      "x": 1738,
+      "y": 700,
+      "w": 160,
+      "h": 200,
+      "curve": 0.3,
+      "labelDy": 150,
+      "glow": "#FFFFD58A"
+    }
+  ],
+  "more": {
+    "x": 960,
+    "y": 1010
+  },
+  "motion": {
+    "twinkles": {
+      "rect": [
+        984,
+        703,
+        540,
+        94
+      ],
+      "count": 16,
+      "color": "#FFFFFFFF"
+    },
+    "mist": [
+      [
+        560,
+        40,
+        800,
+        240,
+        40,
+        60
+      ],
+      [
+        400,
+        420,
+        600,
+        160,
+        -30,
+        44
+      ]
+    ],
+    "falls": [
+      [
+        434,
+        457,
+        70,
+        152
+      ],
+      [
+        387,
+        656,
+        234,
+        117
+      ],
+      [
+        505,
+        860,
+        30,
+        120
+      ]
+    ],
+    "lights": [],
+    "mistColor": "#FFFFF6E8"
+  }
+}
