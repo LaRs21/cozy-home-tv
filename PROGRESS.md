@@ -12,7 +12,7 @@ Other branches: `box-pictures-standalone` (the same picture work first built on 
 3. [x] PictureHome (painting, 4 spots in the object's style, "+ Add app", focus ring, motion, themed More apps).
 4. [x] HomeActivity hooks, per-theme music (fade in, fade out on app open), `--es spots` / `--ez chooseApps` hooks.
 5. [x] Settings: Choose apps, Music + volume for picture themes, About credits. Docs, CREDITS, CHANGELOG, setup.sh.
-6. [ ] Emulator tests + screenshots (picture-themes/shots/), memory per theme with music, APK size.
+6. [x] Emulator tests + screenshots (picture-themes/shots/), memory per theme with music, APK size.
 7. [x] Port Clean-Alpine (57a7d1b) from the Mac bundle; release key on the box.
 
 ## Next
@@ -23,3 +23,6 @@ Other branches: `box-pictures-standalone` (the same picture work first built on 
 ## Log
 - 27 Oct: box toolchain + emulator (TCG, no KVM). Picture themes built and tested on abe66b5, then ported onto
   57a7d1b after the Mac sync (10:12 MYT). Release-signed build from the box.
+- 27 Oct ~10:45 MYT: release-signed 1.3.0-pre (12 MB) tested on the box emulator: all 5 themes, focus, other apps,
+  More apps, Choose apps, empty spots. Music plays per theme, stops in an app, resumes back home. Fixed a bug
+  where switching themes could leave the new track silent (old track's position was reused).
