@@ -207,7 +207,7 @@ public class HomeActivity extends Activity {
             if (unhide != null) h.removeAll(Prefs.split(unhide));
             prefs.setHidden(h); hidden = h; if (column != null) refreshApps();
         }
-        String sp = i.getStringExtra("spots"); // e.g. a private setup script: --es spots com.netflix.ninja,,org.ppsspp.ppsspp
+        String sp = i.getStringExtra("spots"); // e.g. a private setup script: --es spots com.netflix.ninja,,com.google.android.youtube.tv
         if (sp != null) { prefs.setSpots(Arrays.asList(sp.split(",", -1))); if (column != null) rebuildRows(); }
         if (i.getBooleanExtra("chooseApps", false)) { wantChooser = true; if (resumed && pictureUi()) { wantChooser = false; pic.openChooser(); } }
         if (i.getBooleanExtra("reload", false)) packStamp = -1;

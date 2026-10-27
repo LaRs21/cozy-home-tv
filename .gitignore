@@ -21,3 +21,6 @@ debloat-*.log
 .idea/
 *.iml
 local.properties
+
+# private build notes (kept outside the repo)
+PROGRESS.md

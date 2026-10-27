@@ -104,7 +104,7 @@ at all when Settings > Little movements is off.
 * On home: OK on an empty spot (**+ Add app**) opens the app list. Hold OK (or press Menu) on a spot to change its app, move it to another spot, or clear it.
 * In More apps: hold OK on an app and pick **Put in a spot**.
 * In Settings: **Choose apps** lists the 4 spots; OK on one opens the app list, hold OK clears it. Also from a script: `--ez chooseApps true`.
-* From a script (for example your own setup): `am start -n io.github.lars21.cozyhometv/.HomeActivity --es spots com.netflix.ninja,com.disney.disneyplus,,org.ppsspp.ppsspp`.
+* From a script (for example your own setup): `am start -n io.github.lars21.cozyhometv/.HomeActivity --es spots com.netflix.ninja,com.disney.disneyplus,,com.google.android.youtube.tv`.
   The packages go in spot order, and an empty entry leaves that spot empty.
 
 ## Licences
