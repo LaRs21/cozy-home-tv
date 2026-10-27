@@ -26,3 +26,6 @@ Other branches: `box-pictures-standalone` (the same picture work first built on 
 - 27 Oct ~10:45 MYT: release-signed 1.3.0-pre (12 MB) tested on the box emulator: all 5 themes, focus, other apps,
   More apps, Choose apps, empty spots. Music plays per theme, stops in an app, resumes back home. Fixed a bug
   where switching themes could leave the new track silent (old track's position was reused).
+- 27 Oct ~11:20 MYT: spots now show each app's own art untouched (banner, else the system-drawn launcher icon) with
+  only a glow, soft shadow and focus ring around it; D-pad goes app to app in reading order (down from the bottom
+  row = More apps, up from the top-right spot = gear). Built and tested on the Mac emulator (the box one has no KVM).

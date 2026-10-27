@@ -473,7 +473,7 @@ final class PictureHome {
             int acc = h.theme.accent;
             String label = app != null ? app.name : "+ Add app";
             CharSequence l = TextUtils.ellipsize(label, labelP, h.px(vw) - h.px(40), TextUtils.TruncateAt.END);
-            float ly = cy + Math.max(h.px(slot.labelDy), artH / 2f + h.px(40)) + h.px(10);
+            float ly = cy + Math.max(h.px(slot.labelDy), artH / 2f + h.px(56)) + h.px(10); // the name clears the art
             if (glow > .01f) {
                 float m = h.px(Math.min(slot.w, slot.h)) * (slot.round || slot.style.equals("ring") ? .5f : .46f) + h.px(10);
                 ringP.setStyle(Paint.Style.STROKE); ringP.setStrokeWidth(h.px(6)); ringP.setColor(acc); ringP.setAlpha(Math.round(255 * glow));
